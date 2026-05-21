@@ -164,17 +164,22 @@ with tab_alt:
         chart_card_open("Маржинальность по месяцам",
                         "GP / Оборот · OP / Оборот · Net / Оборот")
         months_axis = []
-        gp_pct, op_pct, np_pct = [], [], []
+        gp_pct, gp_fx_pct, op_pct, np_pct = [], [], [], []
         for m in range(1, 13):
             turnover_m = pl_value(rows, "turnover", m, "fact", TARGET_YEAR)
             if turnover_m <= 0:
                 continue
             months_axis.append(MONTH_NAMES_SHORT[m - 1])
-            gp_pct.append(pl_value(rows, "gross_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
+            gp_m = pl_value(rows, "gross_profit", m, "fact", TARGET_YEAR)
+            revaluation_m = pl_value(rows, "revaluation", m, "fact", TARGET_YEAR)
+            realized_fx_m = pl_value(rows, "realized_fx", m, "fact", TARGET_YEAR)
+            gp_pct.append(gp_m / turnover_m * 100)
+            gp_fx_pct.append((gp_m + revaluation_m + realized_fx_m) / turnover_m * 100)
             op_pct.append(pl_value(rows, "operating_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
             np_pct.append(pl_value(rows, "net_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
         fig = go.Figure()
         for name, vals, color in [("GP / Оборот", gp_pct, "#B8A3DC"),
+                                  ("GP+FX / Оборот", gp_fx_pct, "#C5B2EC"),
                                   ("OP / Оборот", op_pct, "#9DD8BE"),
                                   ("Net / Оборот", np_pct, "#F0C8A0")]:
             fig.add_trace(go.Scatter(
