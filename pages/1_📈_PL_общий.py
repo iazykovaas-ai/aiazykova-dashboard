@@ -84,25 +84,36 @@ chart_card_open(f"От выручки до чистой прибыли · {month
                 "Waterfall, тыс. USD")
 # В PL GLOBAL расходы хранятся со знаком «минус», доходы — со знаком «плюс».
 # Передаём значения как есть — Plotly сам нарисует красным вниз / зелёным вверх.
-fx_adj = (pl_value(rows, "revaluation", TARGET_MONTH, "fact", TARGET_YEAR)
-          + pl_value(rows, "realized_fx", TARGET_MONTH, "fact", TARGET_YEAR)
-          + pl_value(rows, "unrealized_fx", TARGET_MONTH, "fact", TARGET_YEAR))
+revaluation_val = pl_value(rows, "revaluation", TARGET_MONTH, "fact", TARGET_YEAR)
+realized_fx_val = pl_value(rows, "realized_fx", TARGET_MONTH, "fact", TARGET_YEAR)
 other_income_val = pl_value(rows, "other_income", TARGET_MONTH, "fact", TARGET_YEAR)
 financial_val = pl_value(rows, "financial_inc_exp", TARGET_MONTH, "fact", TARGET_YEAR)
 tax = pl_value(rows, "income_tax", TARGET_MONTH, "fact", TARGET_YEAR)
 
+# Шаги waterfall: (название, значение, тип). Нулевые «relative»-строки скрываем.
+wf_steps = [
+    ("Выручка",                              revenue,          "absolute"),
+    ("Прямые расходы",                       direct_costs,     "relative"),
+    ("Валовая прибыль",                      gross_profit,     "total"),
+    ("Прибыль/убыток от переоценки",         revaluation_val,  "relative"),
+    ("Прибыль/убыток от банковских конвертаций", realized_fx_val, "relative"),
+    ("OPEX",                                 opex,             "relative"),
+    ("Операционная прибыль",                 op_profit,        "total"),
+    ("Прочие доходы/расходы",                other_income_val, "relative"),
+    ("Финансовые доходы/расходы",            financial_val,    "relative"),
+    ("PBT",                                  pbt,              "total"),
+    ("Налог",                                tax,              "relative"),
+    ("Чистая прибыль",                       net_profit,       "total"),
+]
+wf_filtered = [(lbl, val, m) for lbl, val, m in wf_steps
+               if not (m == "relative" and val == 0)]
+
 wf = go.Figure(go.Waterfall(
     orientation="v",
-    measure=["absolute", "relative", "total", "relative", "relative", "total",
-             "relative", "relative", "total", "relative", "total"],
-    x=["Выручка", "Прямые расходы", "Валовая прибыль", "FX корректировки", "OPEX",
-       "Опер. прибыль", "Прочие д/р", "Финансовые д/р", "PBT", "Налог", "Чистая прибыль"],
-    y=[revenue, direct_costs, gross_profit, fx_adj, opex, op_profit,
-       other_income_val, financial_val, pbt, tax, net_profit],
-    text=[fmt_kusd(revenue), fmt_kusd(direct_costs), fmt_kusd(gross_profit),
-          fmt_kusd(fx_adj), fmt_kusd(opex), fmt_kusd(op_profit),
-          fmt_kusd(other_income_val), fmt_kusd(financial_val),
-          fmt_kusd(pbt), fmt_kusd(tax), fmt_kusd(net_profit)],
+    measure=[m for _, _, m in wf_filtered],
+    x=[lbl for lbl, _, _ in wf_filtered],
+    y=[val for _, val, _ in wf_filtered],
+    text=[fmt_kusd(val) for _, val, _ in wf_filtered],
     textposition="outside",
     textfont=dict(color=PALETTE["ink"], size=12),
     connector=dict(line=dict(color=PALETTE["line"], width=1)),
