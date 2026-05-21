@@ -80,10 +80,7 @@ c4.metric("Чистая прибыль (Net)", fmt_kusd(net_profit), y2y(net_pro
 st.markdown("")
 
 # ===== Waterfall =====
-chart_card_open(f"От выручки до чистой прибыли · {month_name} {TARGET_YEAR}",
-                "Waterfall, тыс. USD")
 # В PL GLOBAL расходы хранятся со знаком «минус», доходы — со знаком «плюс».
-# Передаём значения как есть — Plotly сам нарисует красным вниз / зелёным вверх.
 revaluation_val = pl_value(rows, "revaluation", TARGET_MONTH, "fact", TARGET_YEAR)
 realized_fx_val = pl_value(rows, "realized_fx", TARGET_MONTH, "fact", TARGET_YEAR)
 other_income_val = pl_value(rows, "other_income", TARGET_MONTH, "fact", TARGET_YEAR)
