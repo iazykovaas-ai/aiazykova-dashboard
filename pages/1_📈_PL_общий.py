@@ -162,7 +162,7 @@ with tab_alt:
 
     with col_b:
         chart_card_open("Маржинальность по месяцам",
-                        "GP / Оборот · OP / Оборот · Net / Оборот")
+                        "GP / Оборот · GP+FX / Оборот · OP / Оборот · Net / Оборот")
         months_axis = []
         gp_pct, gp_fx_pct, op_pct, np_pct = [], [], [], []
         for m in range(1, 13):
@@ -179,7 +179,7 @@ with tab_alt:
             np_pct.append(pl_value(rows, "net_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
         fig = go.Figure()
         for name, vals, color in [("GP / Оборот", gp_pct, "#B8A3DC"),
-                                  ("GP+FX / Оборот", gp_fx_pct, "#C5B2EC"),
+                                  ("GP+FX / Оборот", gp_fx_pct, "#A9C9EE"),
                                   ("OP / Оборот", op_pct, "#9DD8BE"),
                                   ("Net / Оборот", np_pct, "#F0C8A0")]:
             fig.add_trace(go.Scatter(
