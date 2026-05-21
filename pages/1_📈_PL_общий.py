@@ -105,106 +105,17 @@ wf_steps = [
 wf_filtered = [(lbl, val, m) for lbl, val, m in wf_steps
                if not (m == "relative" and val == 0)]
 
-wf = go.Figure(go.Waterfall(
-    orientation="v",
-    measure=[m for _, _, m in wf_filtered],
-    x=[lbl for lbl, _, _ in wf_filtered],
-    y=[val for _, val, _ in wf_filtered],
-    text=[fmt_kusd(val) for _, val, _ in wf_filtered],
-    textposition="outside",
-    textfont=dict(color=PALETTE["ink"], size=12),
-    connector=dict(line=dict(color=PALETTE["line"], width=1)),
-    increasing=dict(marker=dict(color="#9DD8BE")),
-    decreasing=dict(marker=dict(color="#EFA9C0")),
-    totals=dict(marker=dict(color="#B8A3DC")),
-))
-style_plotly_2d(wf, height=440)
-wf.update_layout(yaxis=dict(title="тыс. USD"), xaxis=dict(showgrid=False))
-st.plotly_chart(wf, use_container_width=True, config={"displayModeBar": True, "displaylogo": False, "scrollZoom": True})
-chart_card_close()
+tab_wf, tab_alt = st.tabs(["📊 Waterfall", "🍩 Структура расходов + маржинальность"])
 
-# ===== 🧪 Альтернативные визуализации =====
-st.markdown("### 🧪 Альтернативные визуализации того же P&L")
-
-tab1, tab2, tab3, tab4 = st.tabs([
-    "1. Sankey (потоки)",
-    "2. Treemap (плитки)",
-    "3. Горизонтальный waterfall",
-    "5. Доп. карточки",
-])
-
-# --- 1. Sankey ---
-with tab1:
-    chart_card_open(f"Потоки P&L · {month_name} {TARGET_YEAR}",
-                    "Sankey: откуда деньги пришли и куда ушли (тыс. USD)")
-    # Узлы: 0=Выручка, 1=Переоценка, 2=Внутрибанковские, 3=Доходный пул,
-    #       4=Прямые расходы, 5=OPEX, 6=Прочие, 7=Финансовые, 8=Налог, 9=Чистая прибыль
-    nodes = ["Выручка", "Переоценка", "Внутрибанковские конвертации",
-             "Доступно к распределению",
-             "Прямые расходы", "OPEX", "Прочие доходы/расходы",
-             "Финансовые доходы/расходы", "Налог", "Чистая прибыль"]
-    sources, targets, values = [], [], []
-    for src_idx, val in [(0, revenue),
-                         (1, revaluation_val if revaluation_val > 0 else 0),
-                         (2, realized_fx_val if realized_fx_val > 0 else 0)]:
-        if val > 0:
-            sources.append(src_idx); targets.append(3); values.append(val)
-    for tgt_idx, val in [(4, abs(direct_costs)),
-                         (5, abs(opex)),
-                         (6, abs(other_income_val) if other_income_val < 0 else 0),
-                         (7, abs(financial_val) if financial_val < 0 else 0),
-                         (8, abs(tax)),
-                         (9, max(net_profit, 0))]:
-        if val > 0:
-            sources.append(3); targets.append(tgt_idx); values.append(val)
-    sankey_colors = ["#B8A3DC", "#9DD8BE", "#F0C8A0", "#C5B2EC",
-                     "#EFA9C0", "#EFA9C0", "#EFA9C0", "#EFA9C0", "#EFA9C0", "#9DD8BE"]
-    fig = go.Figure(go.Sankey(
-        node=dict(label=nodes, color=sankey_colors, pad=20, thickness=22,
-                  line=dict(color="white", width=0.5)),
-        link=dict(source=sources, target=targets, value=values,
-                  color=["rgba(184,163,220,0.4)"] * len(values)),
-    ))
-    style_plotly_2d(fig, height=460)
-    st.plotly_chart(fig, use_container_width=True,
-                    config={"displayModeBar": False})
-    chart_card_close()
-
-# --- 2. Treemap ---
-with tab2:
-    chart_card_open(f"Куда уходят деньги · {month_name} {TARGET_YEAR}",
-                    "Treemap: площадь блока = размер суммы")
-    tm_labels = ["Прямые расходы", "OPEX", "Налог", "Чистая прибыль"]
-    tm_values = [abs(direct_costs), abs(opex), abs(tax), max(net_profit, 0)]
-    if other_income_val < 0:
-        tm_labels.append("Прочие д/р"); tm_values.append(abs(other_income_val))
-    if financial_val < 0:
-        tm_labels.append("Финансовые д/р"); tm_values.append(abs(financial_val))
-    tm_colors = ["#EFA9C0", "#F0C8A0", "#EFA9C0", "#9DD8BE", "#C5B2EC", "#A9C9EE"][:len(tm_labels)]
-    fig = go.Figure(go.Treemap(
-        labels=tm_labels,
-        parents=[""] * len(tm_labels),
-        values=tm_values,
-        text=[fmt_kusd(v) for v in tm_values],
-        textinfo="label+text+percent root",
-        marker=dict(colors=tm_colors, line=dict(color="white", width=2)),
-        hovertemplate="<b>%{label}</b><br>%{text}<br>%{percentRoot} от выручки<extra></extra>",
-    ))
-    style_plotly_2d(fig, height=460)
-    st.plotly_chart(fig, use_container_width=True,
-                    config={"displayModeBar": False})
-    chart_card_close()
-
-# --- 3. Горизонтальный waterfall ---
-with tab3:
-    chart_card_open(f"Горизонтальный waterfall · {month_name} {TARGET_YEAR}",
-                    "То же, но сверху вниз — длинные названия не обрезаются")
-    fig_h = go.Figure(go.Waterfall(
-        orientation="h",
+with tab_wf:
+    chart_card_open(f"От выручки до чистой прибыли · {month_name} {TARGET_YEAR}",
+                    "Waterfall, тыс. USD")
+    wf = go.Figure(go.Waterfall(
+        orientation="v",
         measure=[m for _, _, m in wf_filtered],
-        y=[lbl for lbl, _, _ in wf_filtered][::-1],
-        x=[val for _, val, _ in wf_filtered][::-1],
-        text=[fmt_kusd(val) for _, val, _ in wf_filtered][::-1],
+        x=[lbl for lbl, _, _ in wf_filtered],
+        y=[val for _, val, _ in wf_filtered],
+        text=[fmt_kusd(val) for _, val, _ in wf_filtered],
         textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=12),
         connector=dict(line=dict(color=PALETTE["line"], width=1)),
@@ -212,15 +123,13 @@ with tab3:
         decreasing=dict(marker=dict(color="#EFA9C0")),
         totals=dict(marker=dict(color="#B8A3DC")),
     ))
-    style_plotly_2d(fig_h, height=560)
-    fig_h.update_layout(xaxis=dict(title="тыс. USD"),
-                        yaxis=dict(showgrid=False, automargin=True))
-    st.plotly_chart(fig_h, use_container_width=True,
-                    config={"displayModeBar": False})
+    style_plotly_2d(wf, height=440)
+    wf.update_layout(yaxis=dict(title="тыс. USD"), xaxis=dict(showgrid=False))
+    st.plotly_chart(wf, use_container_width=True,
+                    config={"displayModeBar": True, "displaylogo": False, "scrollZoom": True})
     chart_card_close()
 
-# --- 5. Доп. карточки ---
-with tab4:
+with tab_alt:
     col_a, col_b = st.columns(2)
     with col_a:
         chart_card_open("Структура расходов", "Donut · от чего складываются расходы")
@@ -243,7 +152,7 @@ with tab4:
             textinfo="percent",
             hovertemplate="<b>%{label}</b><br>%{value:,.0f} K$<br>%{percent}<extra></extra>",
         ))
-        style_plotly_2d(fig, height=380)
+        style_plotly_2d(fig, height=440)
         fig.update_layout(showlegend=True,
                           legend=dict(orientation="v", y=0.5, x=1.02,
                                       font=dict(size=11)))
@@ -252,29 +161,30 @@ with tab4:
         chart_card_close()
 
     with col_b:
-        chart_card_open("Маржинальность по месяцам", "GP / Revenue · OP / Revenue · Net / Revenue")
+        chart_card_open("Маржинальность по месяцам",
+                        "GP / Оборот · OP / Оборот · Net / Оборот")
         months_axis = []
         gp_pct, op_pct, np_pct = [], [], []
         for m in range(1, 13):
-            r = pl_value(rows, "revenue", m, "fact", TARGET_YEAR)
-            if r <= 0:
+            turnover_m = pl_value(rows, "turnover", m, "fact", TARGET_YEAR)
+            if turnover_m <= 0:
                 continue
             months_axis.append(MONTH_NAMES_SHORT[m - 1])
-            gp_pct.append(pl_value(rows, "gross_profit", m, "fact", TARGET_YEAR) / r * 100)
-            op_pct.append(pl_value(rows, "operating_profit", m, "fact", TARGET_YEAR) / r * 100)
-            np_pct.append(pl_value(rows, "net_profit", m, "fact", TARGET_YEAR) / r * 100)
+            gp_pct.append(pl_value(rows, "gross_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
+            op_pct.append(pl_value(rows, "operating_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
+            np_pct.append(pl_value(rows, "net_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
         fig = go.Figure()
-        for name, vals, color in [("GP %", gp_pct, "#B8A3DC"),
-                                  ("OP %", op_pct, "#9DD8BE"),
-                                  ("Net %", np_pct, "#F0C8A0")]:
+        for name, vals, color in [("GP / Оборот", gp_pct, "#B8A3DC"),
+                                  ("OP / Оборот", op_pct, "#9DD8BE"),
+                                  ("Net / Оборот", np_pct, "#F0C8A0")]:
             fig.add_trace(go.Scatter(
                 x=months_axis, y=vals, mode="lines+markers",
                 name=name,
                 line=dict(color=color, width=3),
                 marker=dict(size=10),
-                hovertemplate=f"<b>{name}</b> %{{y:.1f}}%<extra></extra>",
+                hovertemplate=f"<b>{name}</b> %{{y:.2f}}%<extra></extra>",
             ))
-        style_plotly_2d(fig, height=380)
+        style_plotly_2d(fig, height=440)
         fig.update_layout(yaxis=dict(ticksuffix="%"),
                           legend=dict(orientation="h", y=1.1))
         st.plotly_chart(fig, use_container_width=True,
