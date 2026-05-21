@@ -133,6 +133,10 @@ with tab_alt:
     col_a, col_b = st.columns(2)
     with col_a:
         chart_card_open("Структура расходов", "Donut · от чего складываются расходы")
+        # Цвета синхронизированы с 3D OPEX-графиком ниже:
+        # Software & IT = лаванда, Marketing = мята, Personnel = персик,
+        # G&A = роза, Consulting = небо, Legal = ваниль, Other = сирень.
+        # Прямые расходы и Налог — отдельные цвета (их нет на OPEX-графике).
         cost_labels = ["Прямые расходы", "Software & IT", "Marketing", "Personnel",
                        "G&A", "Consulting", "Legal", "Other Operating", "Налог"]
         cost_values = [abs(direct_costs),
@@ -144,8 +148,15 @@ with tab_alt:
                        abs(fv("opex_legal")),
                        abs(fv("opex_other")),
                        abs(tax)]
-        cost_pal = ["#B8A3DC", "#9DD8BE", "#F0C8A0", "#EFA9C0",
-                    "#A9C9EE", "#F0DBA0", "#C5B2EC", "#B8DCC8", "#EFA9C0"]
+        cost_pal = ["#B8DCC8",  # Прямые расходы — шалфей
+                    "#B8A3DC",  # Software & IT — лаванда
+                    "#9DD8BE",  # Marketing — мята
+                    "#F0C8A0",  # Personnel — персик
+                    "#EFA9C0",  # G&A — роза
+                    "#A9C9EE",  # Consulting — небо
+                    "#F0DBA0",  # Legal — ваниль
+                    "#C5B2EC",  # Other Operating — сирень
+                    "#D4D0E2"]  # Налог — серо-лавандовый
         fig = go.Figure(go.Pie(
             labels=cost_labels, values=cost_values, hole=0.6,
             marker=dict(colors=cost_pal, line=dict(color="white", width=2)),
