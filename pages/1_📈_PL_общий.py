@@ -1,0 +1,275 @@
+import sys
+from pathlib import Path
+
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from components.kpi import fmt_kusd, fmt_pct
+from components.styles import (PALETTE, apply, chart_card_close,
+                               chart_card_open, cuboid_mesh, hero,
+                               style_plotly_2d, style_plotly_3d)
+from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT,
+                    TARGET_MONTH, TARGET_YEAR)
+from data.sheets_loader import load_pl_global_raw, pl_series, pl_value
+
+st.set_page_config(page_title="PL общий", page_icon="📈", layout="wide")
+apply()
+
+month_name = MONTH_NAMES_RU[TARGET_MONTH - 1]
+hero(f"📈 PL общий · {month_name} {TARGET_YEAR}",
+     "Общий отчёт о прибылях и убытках компании · по данным PL GLOBAL")
+
+# Расшифровка аббревиатур
+with st.expander("ℹ️ Расшифровка аббревиатур"):
+    st.markdown(
+        """
+        | Сокр. | Расшифровка |
+        |---|---|
+        | **YoY** | Year-over-Year — изменение к тому же периоду прошлого года |
+        | **MoM** | Month-over-Month — изменение к предыдущему месяцу |
+        | **YTD** | Year-to-Date — накопительно с начала года |
+        | **п.п.** | Процентные пункты (разница между %) |
+        | **Revenue** | Выручка |
+        | **GP / Gross Profit** | Валовая прибыль (Выручка − Прямые расходы) |
+        | **OPEX** | Operating Expenses — операционные (текущие) расходы |
+        | **FX** | Foreign Exchange — валютные курсовые разницы |
+        | **Operating Profit** | Операционная прибыль (GP − OPEX ± FX) |
+        | **PBT** | Profit Before Tax — прибыль до налогообложения |
+        | **Net Profit** | Чистая прибыль (после уплаты налога) |
+        | **K / M USD** | Тысячи / миллионы долларов США |
+        """
+    )
+
+rows = load_pl_global_raw()
+
+
+def fv(metric: str, month: int = TARGET_MONTH, source: str = "fact",
+       year: int = TARGET_YEAR) -> float:
+    return pl_value(rows, metric, month, source, year)
+
+
+revenue = fv("revenue")
+direct_costs = fv("direct_costs")
+gross_profit = fv("gross_profit")
+opex = fv("opex")
+op_profit = fv("operating_profit")
+pbt = fv("pbt")
+net_profit = fv("net_profit")
+
+revenue_prev = fv("revenue", year=2025)
+gp_prev = fv("gross_profit", year=2025)
+op_prev = fv("operating_profit", year=2025)
+np_prev = fv("net_profit", year=2025)
+
+
+def y2y(curr, prev):
+    if not prev:
+        return None
+    return f"{(curr / prev - 1) * 100:+.1f}% YoY"
+
+
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Выручка (Revenue)", fmt_kusd(revenue), y2y(revenue, revenue_prev))
+c2.metric("Валовая прибыль (GP)", fmt_kusd(gross_profit), y2y(gross_profit, gp_prev))
+c3.metric("Операционная прибыль", fmt_kusd(op_profit), y2y(op_profit, op_prev))
+c4.metric("Чистая прибыль (Net)", fmt_kusd(net_profit), y2y(net_profit, np_prev))
+
+st.markdown("")
+
+# ===== Waterfall =====
+chart_card_open(f"От выручки до чистой прибыли · {month_name} {TARGET_YEAR}",
+                "Waterfall, тыс. USD")
+# В PL GLOBAL расходы хранятся со знаком «минус», доходы — со знаком «плюс».
+# Передаём значения как есть — Plotly сам нарисует красным вниз / зелёным вверх.
+fx_adj = (pl_value(rows, "revaluation", TARGET_MONTH, "fact", TARGET_YEAR)
+          + pl_value(rows, "realized_fx", TARGET_MONTH, "fact", TARGET_YEAR)
+          + pl_value(rows, "unrealized_fx", TARGET_MONTH, "fact", TARGET_YEAR))
+other_income_val = pl_value(rows, "other_income", TARGET_MONTH, "fact", TARGET_YEAR)
+financial_val = pl_value(rows, "financial_inc_exp", TARGET_MONTH, "fact", TARGET_YEAR)
+tax = pl_value(rows, "income_tax", TARGET_MONTH, "fact", TARGET_YEAR)
+
+wf = go.Figure(go.Waterfall(
+    orientation="v",
+    measure=["absolute", "relative", "total", "relative", "relative", "total",
+             "relative", "relative", "total", "relative", "total"],
+    x=["Выручка", "Прямые расходы", "Валовая прибыль", "FX корректировки", "OPEX",
+       "Опер. прибыль", "Прочие д/р", "Финансовые д/р", "PBT", "Налог", "Чистая прибыль"],
+    y=[revenue, direct_costs, gross_profit, fx_adj, opex, op_profit,
+       other_income_val, financial_val, pbt, tax, net_profit],
+    text=[fmt_kusd(revenue), fmt_kusd(direct_costs), fmt_kusd(gross_profit),
+          fmt_kusd(fx_adj), fmt_kusd(opex), fmt_kusd(op_profit),
+          fmt_kusd(other_income_val), fmt_kusd(financial_val),
+          fmt_kusd(pbt), fmt_kusd(tax), fmt_kusd(net_profit)],
+    textposition="outside",
+    textfont=dict(color=PALETTE["ink"], size=12),
+    connector=dict(line=dict(color=PALETTE["line"], width=1)),
+    increasing=dict(marker=dict(color="#9DD8BE")),
+    decreasing=dict(marker=dict(color="#EFA9C0")),
+    totals=dict(marker=dict(color="#B8A3DC")),
+))
+style_plotly_2d(wf, height=440)
+wf.update_layout(yaxis=dict(title="тыс. USD"), xaxis=dict(showgrid=False))
+st.plotly_chart(wf, use_container_width=True, config={"displayModeBar": True, "displaylogo": False, "scrollZoom": True})
+chart_card_close()
+
+# ===== OPEX breakdown =====
+chart_card_open(f"Структура OPEX · {month_name} {TARGET_YEAR}",
+                "3D · по группам расходов, тыс. USD")
+opex_groups = [
+    ("opex_software_it",  "Software & IT",      "Расходы на ПО и ИТ",          "#B8A3DC"),
+    ("opex_marketing",    "Marketing",          "Маркетинг и реклама",         "#9DD8BE"),
+    ("opex_personnel",    "Personnel",          "Расходы на персонал",         "#F0C8A0"),
+    ("opex_ga",           "G&A",                "Общехоз. и админ. расходы",   "#EFA9C0"),
+    ("opex_consulting",   "Consulting & Audit", "Консалтинг и аудит",          "#A9C9EE"),
+    ("opex_legal",        "Legal & Compliance", "Юридические и комплаенс",     "#F0DBA0"),
+    ("opex_other",        "Other Operating",    "Прочие операционные расходы", "#C5B2EC"),
+]
+fig = go.Figure()
+labels = []
+for i, (key, label_en, label_ru, color) in enumerate(opex_groups):
+    val = fv(key)
+    labels.append(label_en)
+    height = abs(val)  # расходы отрицательные — берём модуль для высоты бара
+    fig.add_trace(cuboid_mesh(
+        x0=i - 0.35, x1=i + 0.35,
+        y0=-0.35, y1=0.35,
+        z0=0, z1=height,
+        color=color,
+        name=f"<b>{label_en}</b><br>{label_ru}<br><b>{fmt_kusd(val)}</b>",
+    ))
+fig.update_layout(
+    scene=dict(
+        xaxis=dict(tickmode="array", tickvals=list(range(len(labels))),
+                   ticktext=labels, title=""),
+        yaxis=dict(showticklabels=False, title=""),
+        zaxis=dict(title="тыс. USD"),
+    ),
+    showlegend=False,
+)
+style_plotly_3d(fig, height=540)
+st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False, "scrollZoom": True})
+chart_card_close()
+
+# ===== 3D-бары: динамика =====
+left, right = st.columns([1, 1])
+
+with left:
+    chart_card_open("Динамика выручки 2026", "3D · по месяцам, тыс. USD")
+    rev_series = pl_series(rows, "revenue", "fact", 2026)
+    valid = [(i, v) for i, v in enumerate(rev_series, 1) if v > 0]
+    fig = go.Figure()
+    for idx, (m, v) in enumerate(valid):
+        fig.add_trace(cuboid_mesh(
+            x0=idx - 0.35, x1=idx + 0.35,
+            y0=-0.35, y1=0.35,
+            z0=0, z1=v,
+            color="#B8A3DC",
+            name=f"{MONTH_NAMES_SHORT[m - 1]}: {fmt_kusd(v)}",
+        ))
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(tickmode="array", tickvals=list(range(len(valid))),
+                       ticktext=[MONTH_NAMES_SHORT[m - 1] for m, _ in valid],
+                       title=""),
+            yaxis=dict(showticklabels=False, title=""),
+            zaxis=dict(title="тыс. USD"),
+        ),
+        showlegend=False,
+    )
+    style_plotly_3d(fig, height=440)
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False, "scrollZoom": True})
+    chart_card_close()
+
+with right:
+    chart_card_open("Динамика чистой прибыли 2026", "3D · по месяцам, тыс. USD")
+    np_series = pl_series(rows, "net_profit", "fact", 2026)
+    valid = [(i, v) for i, v in enumerate(np_series, 1) if v != 0]
+    fig = go.Figure()
+    for idx, (m, v) in enumerate(valid):
+        color = "#9DD8BE" if v >= 0 else "#EFA9C0"
+        z0, z1 = (0, v) if v >= 0 else (v, 0)
+        fig.add_trace(cuboid_mesh(
+            x0=idx - 0.35, x1=idx + 0.35,
+            y0=-0.35, y1=0.35,
+            z0=z0, z1=z1,
+            color=color,
+            name=f"{MONTH_NAMES_SHORT[m - 1]}: {fmt_kusd(v)}",
+        ))
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(tickmode="array", tickvals=list(range(len(valid))),
+                       ticktext=[MONTH_NAMES_SHORT[m - 1] for m, _ in valid],
+                       title=""),
+            yaxis=dict(showticklabels=False, title=""),
+            zaxis=dict(title="тыс. USD"),
+        ),
+        showlegend=False,
+    )
+    style_plotly_3d(fig, height=440)
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False, "scrollZoom": True})
+    chart_card_close()
+
+# ===== Полная P&L таблица =====
+chart_card_open(f"Полный P&L · {month_name} {TARGET_YEAR}",
+                f"Все статьи · факт за {month_name} · YTD (Янв–{month_name})")
+
+
+def fmt_cell(val: float, is_ratio: bool = False) -> str:
+    if val == 0:
+        return "—"
+    if is_ratio:
+        return fmt_pct(val)
+    return fmt_kusd(val)
+
+
+table_rows = []
+for key, label, kind in PL_TABLE_LAYOUT:
+    is_ratio = key == "turnover_ratio"
+    month_val = fv(key)
+    ytd_val = sum(pl_series(rows, key, "fact", TARGET_YEAR, TARGET_MONTH))
+    table_rows.append({
+        "Статья": label,
+        f"{month_name} (факт)": fmt_cell(month_val, is_ratio),
+        "YTD (факт)": fmt_cell(ytd_val if not is_ratio else month_val, is_ratio),
+        "_kind": kind,
+    })
+table_df = pd.DataFrame(table_rows)
+
+
+def style_pl_row(kind: str, n_cols: int):
+    if kind == "total":
+        return ["font-weight: 700; background-color: #EFEAF7;"] * n_cols
+    if kind == "subitem":
+        return ["color: #6A6485; padding-left: 18px;"] * n_cols
+    return [""] * n_cols
+
+
+display_df = table_df.drop(columns=["_kind"])
+styled = display_df.style.apply(
+    lambda row: style_pl_row(table_df.iloc[row.name]["_kind"], len(row)), axis=1
+)
+st.dataframe(styled, use_container_width=True, hide_index=True, height=820)
+chart_card_close()
+
+# ===== YTD =====
+chart_card_open(f"YTD: Январь — {month_name} {TARGET_YEAR}", "Накопительно, тыс. USD")
+ytd_revenue = sum(pl_series(rows, "revenue", "fact", 2026, TARGET_MONTH))
+ytd_gp = sum(pl_series(rows, "gross_profit", "fact", 2026, TARGET_MONTH))
+ytd_opex = sum(pl_series(rows, "opex", "fact", 2026, TARGET_MONTH))
+ytd_op = sum(pl_series(rows, "operating_profit", "fact", 2026, TARGET_MONTH))
+ytd_np = sum(pl_series(rows, "net_profit", "fact", 2026, TARGET_MONTH))
+
+ytd_revenue_prev = sum(pl_series(rows, "revenue", "fact", 2025, TARGET_MONTH))
+ytd_np_prev = sum(pl_series(rows, "net_profit", "fact", 2025, TARGET_MONTH))
+
+c1, c2, c3, c4, c5 = st.columns(5)
+c1.metric("Выручка YTD", fmt_kusd(ytd_revenue), y2y(ytd_revenue, ytd_revenue_prev))
+c2.metric("GP YTD", fmt_kusd(ytd_gp),
+          fmt_pct(ytd_gp / ytd_revenue) + " от выручки" if ytd_revenue else None)
+c3.metric("OPEX YTD", fmt_kusd(ytd_opex))
+c4.metric("Оп. прибыль YTD", fmt_kusd(ytd_op))
+c5.metric("Чистая прибыль YTD", fmt_kusd(ytd_np), y2y(ytd_np, ytd_np_prev))
+chart_card_close()
