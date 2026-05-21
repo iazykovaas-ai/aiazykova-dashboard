@@ -60,6 +60,7 @@ with st.expander("ℹ️ Расшифровка аббревиатур"):
         | **Revenue** | Выручка |
         | **GP / Gross Profit** | Валовая прибыль (Выручка − Прямые расходы) |
         | **OPEX** | Operating Expenses — операционные (текущие) расходы |
+        | **G&A** | General & Administrative — общехозяйственные и административные расходы |
         | **FX** | Foreign Exchange — валютные курсовые разницы |
         | **Operating Profit** | Операционная прибыль (GP − OPEX ± FX) |
         | **PBT** | Profit Before Tax — прибыль до налогообложения |
