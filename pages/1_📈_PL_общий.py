@@ -18,9 +18,34 @@ from data.sheets_loader import load_pl_global_raw, pl_series, pl_value
 st.set_page_config(page_title="PL общий", page_icon="📈", layout="wide")
 apply()
 
-month_name = MONTH_NAMES_RU[TARGET_MONTH - 1]
-hero(f"📈 PL общий · {month_name} {TARGET_YEAR}",
+hero(f"📈 PL общий · {TARGET_YEAR}",
      "Общий отчёт о прибылях и убытках компании · по данным PL GLOBAL")
+
+# ===== Переключатель периода =====
+st.markdown("##### 📅 Период")
+col_from, col_to = st.columns(2)
+with col_from:
+    from_m = st.selectbox(
+        "С месяца", list(range(1, 13)),
+        format_func=lambda x: MONTH_NAMES_RU[x - 1],
+        index=0, key="period_from",
+    )
+with col_to:
+    to_m = st.selectbox(
+        "По месяц", list(range(1, 13)),
+        format_func=lambda x: MONTH_NAMES_RU[x - 1],
+        index=TARGET_MONTH - 1, key="period_to",
+    )
+if from_m > to_m:
+    from_m, to_m = to_m, from_m  # тихо меняем местами, если перепутаны
+
+# Подпись текущего периода для заголовков
+if from_m == to_m:
+    period_label = f"{MONTH_NAMES_RU[from_m - 1]} {TARGET_YEAR}"
+else:
+    period_label = f"{MONTH_NAMES_RU[from_m - 1]} — {MONTH_NAMES_RU[to_m - 1]} {TARGET_YEAR}"
+
+month_name = period_label  # обратная совместимость со старыми f-строками
 
 # Расшифровка аббревиатур
 with st.expander("ℹ️ Расшифровка аббревиатур"):
@@ -46,9 +71,10 @@ with st.expander("ℹ️ Расшифровка аббревиатур"):
 rows = load_pl_global_raw()
 
 
-def fv(metric: str, month: int = TARGET_MONTH, source: str = "fact",
-       year: int = TARGET_YEAR) -> float:
-    return pl_value(rows, metric, month, source, year)
+def fv(metric: str, year: int = TARGET_YEAR) -> float:
+    """Сумма значений метрики за выбранный период [from_m..to_m]."""
+    return sum(pl_value(rows, metric, m, "fact", year)
+               for m in range(from_m, to_m + 1))
 
 
 revenue = fv("revenue")
@@ -81,11 +107,11 @@ st.markdown("")
 
 # ===== Waterfall =====
 # В PL GLOBAL расходы хранятся со знаком «минус», доходы — со знаком «плюс».
-revaluation_val = pl_value(rows, "revaluation", TARGET_MONTH, "fact", TARGET_YEAR)
-realized_fx_val = pl_value(rows, "realized_fx", TARGET_MONTH, "fact", TARGET_YEAR)
-other_income_val = pl_value(rows, "other_income", TARGET_MONTH, "fact", TARGET_YEAR)
-financial_val = pl_value(rows, "financial_inc_exp", TARGET_MONTH, "fact", TARGET_YEAR)
-tax = pl_value(rows, "income_tax", TARGET_MONTH, "fact", TARGET_YEAR)
+revaluation_val = fv("revaluation")
+realized_fx_val = fv("realized_fx")
+other_income_val = fv("other_income")
+financial_val = fv("financial_inc_exp")
+tax = fv("income_tax")
 
 # Шаги waterfall: (название, значение, тип). Нулевые «relative»-строки скрываем.
 wf_steps = [
@@ -307,8 +333,8 @@ with right:
     chart_card_close()
 
 # ===== Полная P&L таблица =====
-chart_card_open(f"Полный P&L · {month_name} {TARGET_YEAR}",
-                f"Все статьи · факт за {month_name} · YTD (Янв–{month_name})")
+chart_card_open(f"Полный P&L · {period_label}",
+                f"Все статьи · факт за {period_label}")
 
 
 def fmt_cell(val: float, is_ratio: bool = False) -> str:
@@ -319,15 +345,18 @@ def fmt_cell(val: float, is_ratio: bool = False) -> str:
     return fmt_kusd(val)
 
 
+# Для коэффициента маржи к обороту считаем GP / Turnover за период
+turnover_total = fv("turnover")
+gp_total = fv("gross_profit")
+turnover_ratio_period = gp_total / turnover_total if turnover_total else 0
+
 table_rows = []
 for key, label, kind in PL_TABLE_LAYOUT:
     is_ratio = key == "turnover_ratio"
-    month_val = fv(key)
-    ytd_val = sum(pl_series(rows, key, "fact", TARGET_YEAR, TARGET_MONTH))
+    val = turnover_ratio_period if is_ratio else fv(key)
     table_rows.append({
         "Статья": label,
-        f"{month_name} (факт)": fmt_cell(month_val, is_ratio),
-        "YTD (факт)": fmt_cell(ytd_val if not is_ratio else month_val, is_ratio),
+        f"{period_label} (факт)": fmt_cell(val, is_ratio),
         "_kind": kind,
     })
 table_df = pd.DataFrame(table_rows)
@@ -346,24 +375,4 @@ styled = display_df.style.apply(
     lambda row: style_pl_row(table_df.iloc[row.name]["_kind"], len(row)), axis=1
 )
 st.dataframe(styled, use_container_width=True, hide_index=True, height=820)
-chart_card_close()
-
-# ===== YTD =====
-chart_card_open(f"YTD: Январь — {month_name} {TARGET_YEAR}", "Накопительно, тыс. USD")
-ytd_revenue = sum(pl_series(rows, "revenue", "fact", 2026, TARGET_MONTH))
-ytd_gp = sum(pl_series(rows, "gross_profit", "fact", 2026, TARGET_MONTH))
-ytd_opex = sum(pl_series(rows, "opex", "fact", 2026, TARGET_MONTH))
-ytd_op = sum(pl_series(rows, "operating_profit", "fact", 2026, TARGET_MONTH))
-ytd_np = sum(pl_series(rows, "net_profit", "fact", 2026, TARGET_MONTH))
-
-ytd_revenue_prev = sum(pl_series(rows, "revenue", "fact", 2025, TARGET_MONTH))
-ytd_np_prev = sum(pl_series(rows, "net_profit", "fact", 2025, TARGET_MONTH))
-
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Выручка YTD", fmt_kusd(ytd_revenue), y2y(ytd_revenue, ytd_revenue_prev))
-c2.metric("GP YTD", fmt_kusd(ytd_gp),
-          fmt_pct(ytd_gp / ytd_revenue) + " от выручки" if ytd_revenue else None)
-c3.metric("OPEX YTD", fmt_kusd(ytd_opex))
-c4.metric("Оп. прибыль YTD", fmt_kusd(ytd_op))
-c5.metric("Чистая прибыль YTD", fmt_kusd(ytd_np), y2y(ytd_np, ytd_np_prev))
 chart_card_close()
