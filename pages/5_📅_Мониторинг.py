@@ -89,6 +89,16 @@ daily = mon_summary_daily(rows, metric, month)
 x = [d.strftime("%d.%m") for d, _ in daily]
 y = [v for _, v in daily]
 
+
+def _bar_label(v: float) -> str:
+    """Подпись над столбцом: деньги — в тысячах ($…k), целые — как есть."""
+    if metric_fmt == "money":
+        return f"{v / 1000:,.0f}".replace(",", " ") + "k"
+    if metric_fmt == "int":
+        return f"{v:,.0f}".replace(",", " ")
+    return fmt_val(v, metric_fmt)
+
+
 if metric_fmt == "pct":
     # маржинальность — линия с заливкой
     fig = go.Figure(go.Scatter(
@@ -98,18 +108,23 @@ if metric_fmt == "pct":
         fill="tozeroy", fillcolor="rgba(54,197,240,0.12)",
         hovertemplate="<b>%{x}</b><br>%{y:.2f}%<extra></extra>",
     ))
-    style_plotly_2d(fig, height=380)
-    fig.update_layout(yaxis=dict(ticksuffix="%"), xaxis=dict(showgrid=False))
+    style_plotly_2d(fig, height=400)
+    fig.update_layout(yaxis=dict(ticksuffix="%"),
+                      xaxis=dict(showgrid=False, type="category", tickangle=-45))
 else:
     # оборот / прибыль / сделки — столбцы; цвет по знаку для прибыли/переоценки
     colors = ["#2FD9A6" if v >= 0 else "#FF5C7A" for v in y]
     fig = go.Figure(go.Bar(
         x=x, y=y, marker=dict(color=colors, line=dict(width=0)),
+        text=[_bar_label(v) for v in y],
+        textposition="outside",
+        textfont=dict(color=PALETTE["ink"], size=10),
+        cliponaxis=False,
         hovertemplate="<b>%{x}</b><br>%{customdata}<extra></extra>",
         customdata=[fmt_val(v, metric_fmt) for v in y],
     ))
-    style_plotly_2d(fig, height=380)
-    fig.update_layout(xaxis=dict(showgrid=False))
+    style_plotly_2d(fig, height=420)
+    fig.update_layout(xaxis=dict(showgrid=False, type="category", tickangle=-45))
 st.plotly_chart(fig, use_container_width=True,
                 config={"displayModeBar": True, "displaylogo": False})
 chart_card_close()
