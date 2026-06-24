@@ -98,6 +98,52 @@ PL_TABLE_LAYOUT = [
     ("net_profit",        "Net Profit (Чистая прибыль)",    "total"),
 ]
 
+# ============= МОНИТОРИНГ (по дате закрытия сделки) =============
+# Лист-шаблон: D–G = месячные итоги (март…июнь), с H — по дням (даты в строке 1).
+MON_DAILY_START_COL = 8                       # колонка H — первая дневная
+MON_MONTH_TOTAL_COLS = {3: 4, 4: 5, 5: 6, 6: 7}   # месяц → колонка итога (D..G)
+
+# Сводные строки (1-индекс), идентификация по метке в колонке C.
+MON_SUMMARY_ROWS = {
+    "turnover":        {"row": 3,  "label": "Оборот всего",                "fmt": "money"},
+    "marginal_profit": {"row": 4,  "label": "Маржинальная прибыль всего",  "fmt": "money"},
+    "marginality":     {"row": 5,  "label": "Маржинальность средняя",      "fmt": "pct"},
+    "avg_check":       {"row": 6,  "label": "Средний чек",                 "fmt": "money"},
+    "deals":           {"row": 7,  "label": "Кол-во закрытых сделок",      "fmt": "int"},
+    "active_clients":  {"row": 8,  "label": "Активные клиенты",            "fmt": "int"},
+    "payment_term":    {"row": 9,  "label": "Средневзвеш срок оплаты",     "fmt": "num"},
+    "trigger_deals":   {"row": 10, "label": "Кол-во триггерных сделок",    "fmt": "int"},
+    "revaluation":     {"row": 11, "label": "Переоценка всего, в тч.:",    "fmt": "money"},
+}
+
+# Заголовки блоков «по бизнес-линиям» (1-индекс строки заголовка; 11 линий идут ниже).
+MON_LINE_BLOCKS = {
+    "turnover":        {"header": 14, "label": "Оборот",                "fmt": "money"},
+    "marginal_profit": {"header": 27, "label": "Маржинальная прибыль",  "fmt": "money"},
+    "marginality":     {"header": 40, "label": "Маржинальность средняя", "fmt": "pct"},
+    "avg_check":       {"header": 53, "label": "Средний чек",           "fmt": "money"},
+    "deals":           {"header": 66, "label": "Кол-во закрытых сделок", "fmt": "int"},
+    "active_clients":  {"header": 79, "label": "Активные клиенты",      "fmt": "int"},
+}
+
+# 11 бизнес-линий в порядке листа Мониторинга.
+MON_LINES = ["Bank opt_import", "Bank import", "Direct opt_import", "Direct import",
+             "Exchange", "Special", "Sber import", "Sber export", "Export", "Partner", "Dealing"]
+
+# Отображаемые имена метрик мониторинга (для переключателя на странице).
+MON_METRIC_LABELS = {
+    "turnover":        "Оборот",
+    "marginal_profit": "Маржинальная прибыль",
+    "marginality":     "Маржинальность",
+    "avg_check":       "Средний чек",
+    "deals":           "Кол-во закрытых сделок",
+    "active_clients":  "Активные клиенты",
+    "payment_term":    "Средневзвеш. срок оплаты",
+    "trigger_deals":   "Триггерные сделки",
+    "revaluation":     "Переоценка",
+}
+
+
 # Колонки факта 2026 в PL GLOBAL (1-индекс): Jan=17, Feb=19, Mar=21, Apr=23, ... шаг 2 (между каждой парой M2M-колонка)
 PL_FACT_2026_COLS = {m: 17 + (m - 1) * 2 for m in range(1, 13)}
 # Колонки факта 2025: Jan=5 ... Dec=16

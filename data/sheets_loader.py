@@ -169,6 +169,96 @@ def bb_dataframe(rows: list[list[str]], table: str, year: int = 2026) -> pd.Data
     return df
 
 
+# ============= МОНИТОРИНГ (по дате закрытия сделки) =============
+import datetime as _dt
+
+from config import (MON_DAILY_START_COL, MON_LINE_BLOCKS, MON_LINES,  # noqa: E402
+                    MON_MONTH_TOTAL_COLS, MON_SUMMARY_ROWS)
+
+
+def _find_row(rows: list[list[str]], expected: int, label: str, window: int = 4) -> int:
+    """Находит строку с меткой `label` в колонке C около ожидаемой строки (устойчиво к сдвигам)."""
+    if _cell(rows, expected, 3).strip() == label:
+        return expected
+    for r in range(max(1, expected - window), expected + window + 1):
+        if _cell(rows, r, 3).strip() == label:
+            return r
+    return expected  # не нашли — вернём ожидаемую (лучше, чем падать)
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def mon_daily_columns(rows: list[list[str]]) -> list[tuple[int, _dt.date]]:
+    """Список (номер_колонки_1индекс, дата) для всех дневных колонок (с H)."""
+    out: list[tuple[int, _dt.date]] = []
+    header = rows[0] if rows else []
+    for c in range(MON_DAILY_START_COL, len(header) + 1):
+        raw = _cell(rows, 1, c).strip()
+        try:
+            d = _dt.datetime.strptime(raw, "%d/%m/%Y").date()
+            out.append((c, d))
+        except ValueError:
+            continue
+    return out
+
+
+def mon_months_available(rows: list[list[str]]) -> list[int]:
+    """Месяцы, по которым есть дневные данные (по датам в шапке)."""
+    months = sorted({d.month for _, d in mon_daily_columns(rows)})
+    return months
+
+
+def mon_summary_daily(rows: list[list[str]], metric: str, month: int) -> list[tuple[_dt.date, float]]:
+    """Дневной ряд сводной метрики за выбранный месяц: [(дата, значение), ...]."""
+    meta = MON_SUMMARY_ROWS[metric]
+    row = _find_row(rows, meta["row"], meta["label"])
+    return [(d, parse_ru_number(_cell(rows, row, c)))
+            for c, d in mon_daily_columns(rows) if d.month == month]
+
+
+def mon_summary_monthly(rows: list[list[str]], metric: str, month: int) -> float:
+    """Месячный итог сводной метрики строго из колонок D–G листа.
+
+    Возвращает NaN, если итога нет (нет колонки итога — напр. июль; или ячейка пуста —
+    напр. «Активные клиенты» за март–май). Не выдумываем сумму/среднее по дням.
+    """
+    meta = MON_SUMMARY_ROWS[metric]
+    row = _find_row(rows, meta["row"], meta["label"])
+    col = MON_MONTH_TOTAL_COLS.get(month)
+    if col is None:
+        return float("nan")
+    raw = _cell(rows, row, col).strip()
+    if raw == "" or raw.startswith("#"):   # пусто или ошибка формулы (#DIV/0! и т.п.)
+        return float("nan")
+    return parse_ru_number(raw)
+
+
+def mon_line_breakdown(rows: list[list[str]], metric: str, month: int) -> dict[str, float]:
+    """Разбивка метрики по 11 бизнес-линиям за месяц (месячный итог D–G)."""
+    if metric not in MON_LINE_BLOCKS:
+        return {}
+    block = MON_LINE_BLOCKS[metric]
+    header = _find_row(rows, block["header"], block["label"])
+    col = MON_MONTH_TOTAL_COLS.get(month)
+    out: dict[str, float] = {}
+    # линии идут в строках ниже заголовка; ищем каждую по имени в колонке C
+    for line in MON_LINES:
+        target = None
+        for r in range(header + 1, header + len(MON_LINES) + 3):
+            if _cell(rows, r, 3).strip() == line:
+                target = r
+                break
+        if target is None:
+            out[line] = 0.0
+            continue
+        if col is not None:
+            out[line] = parse_ru_number(_cell(rows, target, col))
+        else:
+            # июль: суммируем дневные значения линии
+            out[line] = sum(parse_ru_number(_cell(rows, target, c))
+                            for c, d in mon_daily_columns(rows) if d.month == month)
+    return out
+
+
 # ============= СТАБ (на случай отсутствия доступа) =============
 def load_stub(key: str) -> pd.DataFrame:
     """Минимальные демо-данные."""
