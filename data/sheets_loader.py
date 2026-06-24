@@ -76,6 +76,13 @@ def load_business_block_raw() -> list[list[str]]:
     return ws.get_all_values()
 
 
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю Мониторинг…")
+def load_monitoring_raw() -> list[list[str]]:
+    """Лист «Мониторинг по дате закрытия сделки» из таблицы Мониторинг."""
+    ws = _open_sheet("monitoring")
+    return ws.get_all_values()
+
+
 def _cell(rows: list[list[str]], r: int, c: int) -> str:
     """1-индексированный доступ к ячейке (как в Sheets). Безопасно для outofrange."""
     if r - 1 < 0 or r - 1 >= len(rows):

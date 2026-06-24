@@ -9,6 +9,9 @@ SERVICE_ACCOUNT_FILE = Path(r"C:\Users\User\.gcp\claude-sheets.json")
 # Основная таблица с данными компании
 SPREADSHEET_ID = "1IE-ViT-bX6CYN6OZBvdgUPKEFoyywro8cWX287NWfyE"
 
+# Таблица «Мониторинг» (дневной мониторинг по дате закрытия сделки)
+MONITORING_SPREADSHEET_ID = "16WYf82yG19ILCX1KfEgLuoVn-WToDSAQtXW6p2cDIgE"
+
 # Последний закрытый месяц для дашборда (1=Jan ... 12=Dec)
 TARGET_MONTH = 4   # Apr
 TARGET_YEAR = 2026
@@ -21,6 +24,8 @@ MONTH_NAMES_SHORT = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн",
 SHEETS = {
     "pl_global": {"spreadsheet_id": SPREADSHEET_ID, "worksheet": "PL GLOBAL"},
     "business_block": {"spreadsheet_id": SPREADSHEET_ID, "worksheet": "Бизнес-блок"},
+    "monitoring": {"spreadsheet_id": MONITORING_SPREADSHEET_ID,
+                   "worksheet": "Мониторинг по дате закрытия сделки"},
 }
 
 CACHE_TTL_SECONDS = 300
