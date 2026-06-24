@@ -6,6 +6,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from components.assistant import render_assistant
 from components.kpi import format_money
 from components.styles import (CHART_COLORS, PALETTE, apply,
                                chart_card_close, chart_card_open, cuboid_mesh,
@@ -14,6 +15,7 @@ from data.sheets_loader import load
 
 st.set_page_config(page_title="Клиенты по типам", page_icon="👥", layout="wide")
 apply()
+render_assistant()
 
 hero("👥 Клиенты по типам", "14 типов клиентов · обороты и количество")
 

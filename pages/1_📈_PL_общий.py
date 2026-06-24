@@ -7,6 +7,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from components.assistant import render_assistant
 from components.kpi import fmt_kusd, fmt_pct
 from components.styles import (PALETTE, apply, chart_card_close,
                                chart_card_open, cuboid_mesh, hero,
@@ -17,6 +18,7 @@ from data.sheets_loader import load_pl_global_raw, pl_series, pl_value
 
 st.set_page_config(page_title="PL общий", page_icon="📈", layout="wide")
 apply()
+render_assistant()
 
 hero(f"📈 PL общий · {TARGET_YEAR}",
      "Общий отчёт о прибылях и убытках компании · по данным PL GLOBAL")
@@ -365,10 +367,10 @@ table_df = pd.DataFrame(table_rows)
 
 def style_pl_row(kind: str, n_cols: int):
     if kind == "total":
-        return ["font-weight: 700; background-color: #EFEAF7;"] * n_cols
+        return ["font-weight: 700; background-color: #241E48; color: #FFFFFF;"] * n_cols
     if kind == "subitem":
-        return ["color: #6A6485; padding-left: 18px;"] * n_cols
-    return [""] * n_cols
+        return ["color: #AEB4D8; padding-left: 18px;"] * n_cols
+    return ["color: #E8EAF6;"] * n_cols
 
 
 display_df = table_df.drop(columns=["_kind"])

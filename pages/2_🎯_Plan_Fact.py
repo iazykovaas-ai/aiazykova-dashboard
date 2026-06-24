@@ -6,6 +6,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from components.assistant import render_assistant
 from components.kpi import format_money
 from components.styles import (CHART_COLORS, PALETTE, apply,
                                chart_card_close, chart_card_open, cuboid_mesh,
@@ -14,6 +15,7 @@ from data.sheets_loader import load
 
 st.set_page_config(page_title="План vs Факт", page_icon="🎯", layout="wide")
 apply()
+render_assistant()
 
 hero("🎯 План vs Факт", "Квартальный план (Бюджет M1 + Бюджет M2 + Ребюджет M3) vs факт")
 
@@ -72,15 +74,15 @@ st.markdown(
     <div style="display:flex;gap:24px;justify-content:center;margin-top:-8px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="width:14px;height:14px;background:#B8A3DC;border-radius:4px;"></span>
-        <span style="color:#4A4566;font-size:0.88rem;">План</span>
+        <span style="color:#B6BCE4;font-size:0.88rem;">План</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="width:14px;height:14px;background:#9DD8BE;border-radius:4px;"></span>
-        <span style="color:#4A4566;font-size:0.88rem;">Факт (выполнен)</span>
+        <span style="color:#B6BCE4;font-size:0.88rem;">Факт (выполнен)</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="width:14px;height:14px;background:#EFA9C0;border-radius:4px;"></span>
-        <span style="color:#4A4566;font-size:0.88rem;">Факт (недовыполнен)</span>
+        <span style="color:#B6BCE4;font-size:0.88rem;">Факт (недовыполнен)</span>
       </div>
     </div>
     """,

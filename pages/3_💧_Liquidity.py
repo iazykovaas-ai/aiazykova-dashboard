@@ -6,6 +6,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from components.assistant import render_assistant
 from components.styles import (PALETTE, apply, chart_card_close,
                                chart_card_open, cuboid_mesh, hero,
                                style_plotly_2d, style_plotly_3d)
@@ -13,6 +14,7 @@ from data.sheets_loader import load
 
 st.set_page_config(page_title="Потребность в ликвидности", page_icon="💧", layout="wide")
 apply()
+render_assistant()
 
 hero("💧 Потребность в ликвидности", "Валютный gap по срокам T+0 / T+1 / T+2 (USD)")
 
@@ -78,11 +80,11 @@ st.markdown(
     <div style="display:flex;gap:24px;justify-content:center;margin-top:-8px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="width:14px;height:14px;background:#EFA9C0;border-radius:4px;"></span>
-        <span style="color:#4A4566;font-size:0.88rem;">Потребность</span>
+        <span style="color:#B6BCE4;font-size:0.88rem;">Потребность</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="width:14px;height:14px;background:#9DD8BE;border-radius:4px;"></span>
-        <span style="color:#4A4566;font-size:0.88rem;">Доступно</span>
+        <span style="color:#B6BCE4;font-size:0.88rem;">Доступно</span>
       </div>
     </div>
     """,
