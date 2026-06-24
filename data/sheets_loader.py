@@ -285,7 +285,7 @@ def load_stub(key: str) -> pd.DataFrame:
         return pd.DataFrame({
             "Тип": ["Import", "Export", "Exchange", "Special", "Conversion"],
             "Кол-во": [28, 19, 12, 9, 7],
-            "Оборот, М ₽": [58, 42, 14, 22, 28],
+            "Оборот, млн $": [58, 42, 14, 22, 28],
         })
     return pd.DataFrame()
 

@@ -23,7 +23,7 @@ def fmt_usd(v: float) -> str:
     if abs(v) >= 1_000_000:
         return f"${v / 1_000_000:.2f} M"
     if abs(v) >= 1_000:
-        return f"${v / 1_000:.0f} K"
+        return f"${v / 1_000:.0f} k"
     return f"${v:.0f}"
 
 

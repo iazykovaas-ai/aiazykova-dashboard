@@ -36,7 +36,7 @@ c4.metric("Выполнение", f"{done_pct:.1f}%")
 st.markdown("")
 
 # 3D-стек: план и факт по месяцам
-chart_card_open("План vs Факт по месяцам", "3D · млн ₽")
+chart_card_open("План vs Факт по месяцам", "3D · млн $")
 fig = go.Figure()
 for i, (_, row) in enumerate(df.iterrows()):
     plan_mln = row["План"] / 1_000_000
@@ -47,21 +47,21 @@ for i, (_, row) in enumerate(df.iterrows()):
         y0=-0.30, y1=0.30,
         z0=0, z1=plan_mln,
         color="#B8A3DC",
-        name=f"{row['Месяц']} · План: {plan_mln:.1f} М ₽",
+        name=f"{row['Месяц']} · План: {plan_mln:.1f} млн $",
     ))
     fig.add_trace(cuboid_mesh(
         x0=i + 0.05, x1=i + 0.40,
         y0=-0.30, y1=0.30,
         z0=0, z1=fact_mln,
         color="#9DD8BE" if fact_mln >= plan_mln else "#EFA9C0",
-        name=f"{row['Месяц']} · Факт: {fact_mln:.1f} М ₽",
+        name=f"{row['Месяц']} · Факт: {fact_mln:.1f} млн $",
     ))
 fig.update_layout(
     scene=dict(
         xaxis=dict(tickmode="array", tickvals=list(range(len(df))),
                    ticktext=df["Месяц"].tolist(), title=""),
         yaxis=dict(showticklabels=False, title=""),
-        zaxis=dict(title="млн ₽"),
+        zaxis=dict(title="млн $"),
     ),
     showlegend=False,
 )

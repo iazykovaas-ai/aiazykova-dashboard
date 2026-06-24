@@ -67,7 +67,7 @@ with st.expander("ℹ️ Расшифровка аббревиатур"):
         | **Operating Profit** | Операционная прибыль (GP − OPEX ± FX) |
         | **PBT** | Profit Before Tax — прибыль до налогообложения |
         | **Net Profit** | Чистая прибыль (после уплаты налога) |
-        | **K / M USD** | Тысячи / миллионы долларов США |
+        | **k / M USD** | Тысячи / миллионы долларов США |
         """
     )
 
@@ -190,7 +190,7 @@ with tab_alt:
             labels=cost_labels, values=cost_values, hole=0.6,
             marker=dict(colors=cost_pal, line=dict(color="white", width=2)),
             textinfo="percent",
-            hovertemplate="<b>%{label}</b><br>%{value:,.0f} K$<br>%{percent}<extra></extra>",
+            hovertemplate="<b>%{label}</b><br>%{value:,.0f} k$<br>%{percent}<extra></extra>",
         ))
         style_plotly_2d(fig, height=440)
         fig.update_layout(showlegend=True,
