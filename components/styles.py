@@ -179,6 +179,17 @@ _CSS = """
         color: #FFFFFF !important;
     }
 
+    /* ===== Ссылки-разделы (page_link как карточки) ===== */
+    [data-testid="stPageLink"] a {
+        font-weight: 600 !important;
+        font-size: 1.04rem !important;
+        color: #F2F3FA !important;
+        padding: 4px 2px !important;
+    }
+    [data-testid="stPageLink"] a:hover {
+        color: #B7AEFF !important;
+    }
+
     /* ===== Info ===== */
     [data-testid="stAlert"] {
         border-radius: 12px;

@@ -19,37 +19,27 @@ hero(
 
 st.markdown("### Доступные разделы")
 
+# Кликабельные карточки-ссылки на разделы (реальная навигация по страницам)
 cards = [
-    ("📈", "PL общий", "Выручка, GP, операционная и чистая прибыль · PL GLOBAL", "#7B6FF0"),
-    ("🎯", "План vs Факт", "Факт vs Бюджет по месяцам · PL GLOBAL", "#2FD9A6"),
-    ("👥", "Сегменты", "Бизнес-линии: клиенты, обороты, средний чек, маржинальность", "#F5B544"),
-    ("💧", "Ликвидность", "Валютный gap T+0/T+1/T+2 · скоро (ждём доступ к файлу)", "#36C5F0"),
-    ("📅", "Мониторинг", "Дневная динамика по дате закрытия сделки: оборот, маржа, сделки", "#E94FA1"),
+    ("📈", "PL общий", "Выручка, GP, операционная и чистая прибыль · PL GLOBAL",
+     "pages/1_📈_PL_общий.py", "#7B6FF0"),
+    ("🎯", "План vs Факт", "Факт vs Бюджет по месяцам · PL GLOBAL",
+     "pages/2_🎯_Plan_Fact.py", "#2FD9A6"),
+    ("👥", "Сегменты", "Бизнес-линии: клиенты, обороты, средний чек, маржинальность",
+     "pages/4_👥_Clients.py", "#F5B544"),
+    ("💧", "Ликвидность", "Валютный gap T+0/T+1/T+2 · скоро (ждём доступ к файлу)",
+     "pages/3_💧_Liquidity.py", "#36C5F0"),
+    ("📅", "Мониторинг", "Дневная динамика по дате закрытия сделки: оборот, маржа, сделки",
+     "pages/5_📅_Мониторинг.py", "#E94FA1"),
 ]
 
 cols = st.columns(2)
-for i, (icon, title, desc, color) in enumerate(cards):
+for i, (icon, title, desc, page, color) in enumerate(cards):
     with cols[i % 2]:
-        st.markdown(
-            f"""
-            <div style="background:linear-gradient(160deg,rgba(22,28,55,0.92),rgba(16,22,44,0.92));
-                        border:1px solid rgba(255,255,255,0.07);border-radius:16px;
-                        padding:20px 22px;margin-bottom:14px;
-                        box-shadow:0 8px 26px rgba(0,0,0,0.32),inset 0 1px 0 rgba(255,255,255,0.03);">
-              <div style="display:flex;align-items:center;gap:14px;">
-                <div style="font-size:28px;width:48px;height:48px;border-radius:12px;
-                            background:{color}26;border:1px solid {color}55;
-                            box-shadow:0 0 18px {color}33;display:flex;align-items:center;
-                            justify-content:center;">{icon}</div>
-                <div>
-                  <div style="font-weight:600;color:#F2F3FA;font-size:1.02rem;">{title}</div>
-                  <div style="color:#8A90B8;font-size:0.85rem;margin-top:2px;">{desc}</div>
-                </div>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        with st.container(border=True):
+            st.page_link(page, label=f"{title}", icon=icon)
+            st.caption(desc)
 
 st.markdown("")
-st.caption("👈 Выберите раздел в боковом меню слева. Источник данных: Google Sheets (демо-режим).")
+st.caption("👆 Нажмите на раздел выше или выберите в меню слева. "
+           "Источник данных: Google Sheets.")
