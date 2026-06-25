@@ -337,10 +337,15 @@ def sparkline(values, color: str = "#36C5F0", height: int = 70):
         vals.pop()
     if not vals:
         vals = [0]
+    if color.startswith("#") and len(color) == 7:
+        r, g, b = int(color[1:3], 16), int(color[3:5], 16), int(color[5:7], 16)
+        fill = f"rgba({r},{g},{b},0.15)"
+    else:
+        fill = color
     fig = go.Figure(go.Scatter(
         x=list(range(len(vals))), y=vals, mode="lines",
         line=dict(color=color, width=2, shape="spline"),
-        fill="tozeroy", fillcolor=color + "22",
+        fill="tozeroy", fillcolor=fill,
         hoverinfo="skip",
     ))
     fig.update_layout(
