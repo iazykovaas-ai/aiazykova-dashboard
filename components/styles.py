@@ -330,6 +330,57 @@ def cuboid_mesh(x0, x1, y0, y1, z0, z1, color, name=""):
     )
 
 
+def sparkline(values, color: str = "#36C5F0", height: int = 70):
+    """Мини-график тренда под KPI (без осей, прозрачный фон)."""
+    vals = list(values)
+    while vals and vals[-1] == 0:   # обрезаем хвост из будущих (нулевых) месяцев
+        vals.pop()
+    if not vals:
+        vals = [0]
+    fig = go.Figure(go.Scatter(
+        x=list(range(len(vals))), y=vals, mode="lines",
+        line=dict(color=color, width=2, shape="spline"),
+        fill="tozeroy", fillcolor=color + "22",
+        hoverinfo="skip",
+    ))
+    fig.update_layout(
+        height=height, margin=dict(l=0, r=0, t=2, b=0),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(visible=False), yaxis=dict(visible=False),
+        showlegend=False,
+    )
+    return fig
+
+
+def gauge(value: float, title: str = "", vmax: float = 150, target: float = 100,
+          suffix: str = "%", color: str = "#2FD9A6", height: int = 230):
+    """Спидометр (gauge) с порогом-целью."""
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=value,
+        number=dict(suffix=suffix, font=dict(color="#FFFFFF", size=30)),
+        title=dict(text=title, font=dict(color="#C7CCEC", size=14)),
+        gauge=dict(
+            axis=dict(range=[0, vmax], tickcolor="#8A90B8",
+                      tickfont=dict(color="#8A90B8", size=10)),
+            bar=dict(color=color, thickness=0.28),
+            bgcolor="rgba(255,255,255,0.04)",
+            bordercolor="rgba(255,255,255,0.08)", borderwidth=1,
+            steps=[
+                dict(range=[0, target * 0.7], color="rgba(255,92,122,0.12)"),
+                dict(range=[target * 0.7, target], color="rgba(245,181,68,0.12)"),
+                dict(range=[target, vmax], color="rgba(47,217,166,0.12)"),
+            ],
+            threshold=dict(line=dict(color="#FF5C7A", width=3), thickness=0.85, value=target),
+        ),
+    ))
+    fig.update_layout(
+        height=height, margin=dict(l=24, r=24, t=46, b=8),
+        paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#E8EAF6"),
+    )
+    return fig
+
+
 def bar3d(labels, values, formatter=str):
     """3D bar chart. labels - X categories, values - Z heights."""
     fig = go.Figure()
