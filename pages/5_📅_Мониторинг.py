@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -13,7 +14,7 @@ from components.kpi import format_money
 from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
                                chart_card_open, cuboid_mesh, hero,
                                style_plotly_2d, style_plotly_3d)
-from config import (MON_LINE_BLOCKS, MON_METRIC_LABELS, MON_MONTH_TOTAL_COLS,
+from config import (MON_LINE_BLOCKS, MON_LINES, MON_METRIC_LABELS, MON_MONTH_TOTAL_COLS,
                     MON_SUMMARY_ROWS, MONTH_NAMES_RU)
 from data.sheets_loader import (load_monitoring_raw, mon_line_breakdown,
                                 mon_months_available, mon_summary_daily,
@@ -191,4 +192,88 @@ for key in KPI_METRICS:
     tbl[MON_METRIC_LABELS[key]] = [fmt_val(series.get(d, 0.0), meta["fmt"])
                                    for d, _ in daily]
 st.dataframe(pd.DataFrame(tbl), use_container_width=True, hide_index=True, height=420)
+chart_card_close()
+
+
+# ===== Комбо: оборот (бары) + маржинальность (линия) по месяцам =====
+chart_card_open("Оборот и маржинальность по месяцам",
+                "бары — оборот ($), линия — маржинальность (%) · без Other / Agent / Gold")
+mm = [m for m in months if m in MON_MONTH_TOTAL_COLS]
+combo = [(m, mon_summary_monthly(rows, "turnover", m), mon_summary_monthly(rows, "marginality", m))
+         for m in mm]
+combo = [(m, t, g) for m, t, g in combo if not math.isnan(t)]
+cnames = [MONTH_NAMES_RU[m - 1] for m, _, _ in combo]
+cturn = [t for _, t, _ in combo]
+cmarg = [g for _, _, g in combo]
+
+
+def _k(v: float) -> str:
+    return f"{v / 1000:,.0f}".replace(",", " ") + "k"
+
+
+cfig = make_subplots(specs=[[{"secondary_y": True}]])
+cfig.add_trace(go.Bar(
+    x=cnames, y=cturn, name="Оборот",
+    marker=dict(color="#36C5F0", line=dict(width=0)),
+    text=[_k(v) for v in cturn], textposition="outside",
+    textfont=dict(color=PALETTE["ink"], size=11),
+    hovertemplate="<b>%{x}</b><br>Оборот: %{text}<extra></extra>",
+), secondary_y=False)
+cfig.add_trace(go.Scatter(
+    x=cnames, y=[g * 100 for g in cmarg], name="Маржинальность",
+    mode="lines+markers+text", line=dict(color="#F5B544", width=3),
+    marker=dict(size=10),
+    text=[f"{g * 100:.2f}%" for g in cmarg], textposition="top center",
+    textfont=dict(color="#F5B544", size=11),
+    hovertemplate="<b>%{x}</b><br>Маржинальность: %{y:.2f}%<extra></extra>",
+), secondary_y=True)
+style_plotly_2d(cfig, height=440)
+cfig.update_layout(legend=dict(orientation="h", y=1.12), xaxis=dict(showgrid=False))
+cfig.update_yaxes(title_text="Оборот, $", secondary_y=False)
+cfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False, secondary_y=True)
+st.plotly_chart(cfig, use_container_width=True, config={"displayModeBar": False})
+chart_card_close()
+
+# ===== Тепловая карта: бизнес-линии × месяцы (оборот) =====
+chart_card_open("Тепловая карта оборота · линии × месяцы",
+                "цвет — величина оборота, $ (без Other / Agent / Gold)")
+hb = {m: mon_line_breakdown(rows, "turnover", m) for m in mm}
+z = [[hb[m].get(line, 0.0) for m in mm] for line in MON_LINES]
+ztext = [[_k(hb[m].get(line, 0.0)) for m in mm] for line in MON_LINES]
+hfig = go.Figure(go.Heatmap(
+    z=z, x=cnames, y=MON_LINES,
+    colorscale=[[0, "#0E1430"], [0.5, "#27506E"], [1, "#2FD9A6"]],
+    text=ztext, texttemplate="%{text}", textfont=dict(size=10, color="#E8EAF6"),
+    hovertemplate="<b>%{y}</b> · %{x}<br>%{text}<extra></extra>",
+    colorbar=dict(title="$", tickfont=dict(color="#8A90B8")),
+))
+hfig.update_layout(height=460, paper_bgcolor="rgba(0,0,0,0)",
+                   plot_bgcolor="rgba(0,0,0,0)",
+                   font=dict(color=PALETTE["ink"], size=11),
+                   margin=dict(l=10, r=10, t=10, b=10),
+                   yaxis=dict(autorange="reversed"))
+st.plotly_chart(hfig, use_container_width=True, config={"displayModeBar": False})
+chart_card_close()
+
+# ===== Таблица-светофор по сегментам =====
+chart_card_open(f"Светофор по сегментам · {month_name}",
+                "🟢 маржа выше средней по месяцу · 🟡 половина средней · 🔴 ниже")
+seg_turn = mon_line_breakdown(rows, "turnover", month)
+seg_marg = mon_line_breakdown(rows, "marginality", month)
+avg_marg = mon_summary_monthly(rows, "marginality", month)
+if math.isnan(avg_marg):
+    vals = [v for v in seg_marg.values() if v]
+    avg_marg = sum(vals) / len(vals) if vals else 0.0
+seg_rows = []
+for line in MON_LINES:
+    mg = seg_marg.get(line, 0.0)
+    if mg >= avg_marg:
+        light = "🟢"
+    elif mg >= avg_marg * 0.5:
+        light = "🟡"
+    else:
+        light = "🔴"
+    seg_rows.append({"Сегмент": line, "Оборот": _k(seg_turn.get(line, 0.0)),
+                     "Маржинальность": f"{mg * 100:.2f}%", "Статус": light})
+st.dataframe(pd.DataFrame(seg_rows), use_container_width=True, hide_index=True, height=430)
 chart_card_close()
