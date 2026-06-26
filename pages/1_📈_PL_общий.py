@@ -178,8 +178,8 @@ wf_steps = [
 wf_filtered = [(lbl, val, m) for lbl, val, m in wf_steps
                if not (m == "relative" and val == 0)]
 
-tab_wf, tab_alt, tab_sankey = st.tabs(
-    ["📊 Waterfall", "🍩 Структура расходов + маржинальность", "🔀 Поток (Sankey)"])
+tab_wf, tab_alt, tab_funnel = st.tabs(
+    ["📊 Waterfall", "🍩 Структура расходов + маржинальность", "🔻 Воронка прибыли"])
 
 with tab_wf:
     chart_card_open(f"От выручки до чистой прибыли · {month_name} {TARGET_YEAR}",
@@ -281,33 +281,26 @@ with tab_alt:
                         config={"displayModeBar": False})
         chart_card_close()
 
-with tab_sankey:
-    chart_card_open(f"Поток P&L · {period_label}",
-                    "Sankey · от выручки до чистой прибыли, тыс. USD")
-    s_nodes = ["Выручка", "Прямые расходы", "Валовая прибыль", "OPEX",
-               "Операционная прибыль", "Налог", "Чистая прибыль"]
-    s_node_colors = ["#36C5F0", "#FF5C7A", "#2FD9A6", "#F5B544",
-                     "#8B7BF0", "#E94FA1", "#2FD9A6"]
-    s_src = [0, 0, 2, 2, 4, 4]
-    s_tgt = [1, 2, 3, 4, 5, 6]
-    s_real = [direct_costs, gross_profit, opex, op_profit, tax, net_profit]
-    s_val = [max(abs(v), 1) for v in s_real]
-    s_link_colors = ["rgba(255,92,122,0.35)", "rgba(47,217,166,0.30)",
-                     "rgba(245,181,68,0.35)", "rgba(139,123,240,0.30)",
-                     "rgba(233,79,161,0.35)", "rgba(47,217,166,0.40)"]
-    sankey = go.Figure(go.Sankey(
-        node=dict(label=s_nodes, color=s_node_colors, pad=20, thickness=18,
-                  line=dict(width=0)),
-        link=dict(source=s_src, target=s_tgt, value=s_val, color=s_link_colors,
-                  customdata=[fmt_kusd(v) for v in s_real],
-                  hovertemplate="%{customdata}<extra></extra>"),
+with tab_funnel:
+    chart_card_open(f"Воронка прибыли · {period_label}",
+                    "от выручки до чистой прибыли · тыс. USD и % от выручки")
+    f_labels = ["Выручка", "Валовая прибыль", "Операционная прибыль", "Чистая прибыль"]
+    f_vals = [revenue, gross_profit, op_profit, net_profit]
+    f_colors = ["#36C5F0", "#8B7BF0", "#2FD9A6", "#F5B544"]
+    funnel = go.Figure(go.Funnel(
+        y=f_labels, x=f_vals,
+        textposition="inside", textfont=dict(color="#0A0E20", size=14),
+        texttemplate="%{value:,.0f} тыс. $ · %{percentInitial:.0%}",
+        marker=dict(color=f_colors, line=dict(color="#0A0E20", width=2)),
+        connector=dict(line=dict(color=PALETTE["line"], width=1, dash="dot")),
+        hovertemplate="<b>%{y}</b><br>%{x:,.0f} тыс. $<br>%{percentInitial:.1%} от выручки<extra></extra>",
     ))
-    sankey.update_layout(height=480, paper_bgcolor="rgba(0,0,0,0)",
-                         font=dict(color=PALETTE["ink"], size=13),
-                         margin=dict(l=10, r=10, t=10, b=10))
-    st.plotly_chart(sankey, use_container_width=True, config={"displayModeBar": False})
-    st.caption("Ширина потока — модуль суммы; наведите для точного значения. "
-               "FX/переоценка и прочие статьи для наглядности не показаны.")
+    style_plotly_2d(funnel, height=460)
+    funnel.update_layout(separators=". ", yaxis=dict(showgrid=False),
+                         xaxis=dict(visible=False))
+    st.plotly_chart(funnel, use_container_width=True, config={"displayModeBar": False})
+    st.caption("Каждый уровень — сколько от выручки остаётся после расходов: "
+               "Валовая (− прямые расходы) → Операционная (− OPEX ± FX) → Чистая (− налог).")
     chart_card_close()
 
 
