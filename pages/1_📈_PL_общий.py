@@ -117,27 +117,23 @@ for col, (label, val, prev, key, color, short) in zip(st.columns(4), kpi_defs):
         st.plotly_chart(sparkline(pl_series(rows, key, "fact", 2026), color),
                         use_container_width=True, config={"displayModeBar": False})
 
-# ===== Гейджи: выполнение бюджета YTD (с начала года) =====
-# Бюджет маржи (валовой прибыли) — помесячный; чистой прибыли — накопительный (acc).
-def _ytd_fact(metric: str) -> float:
-    return sum(pl_value(rows, metric, m, "fact") for m in range(1, to_m + 1))
+# ===== Гейджи: выполнение бюджета за выбранный период =====
+# Бюджет маржи (валовой прибыли) — помесячный (суммируем за период);
+# чистой прибыли — накопительный (acc): берём разницу acc(по) − acc(до начала периода).
+gp_budget = sum(pl_value(rows, "gross_profit", m, "budget") for m in range(from_m, to_m + 1))
+gp_done = gross_profit / gp_budget * 100 if gp_budget else 0
 
+np_budget = (pl_value(rows, "net_profit", to_m, "budget")
+             - (pl_value(rows, "net_profit", from_m - 1, "budget") if from_m > 1 else 0))
+np_done = net_profit / np_budget * 100 if np_budget else 0
 
-gp_fact_ytd = _ytd_fact("gross_profit")
-gp_budget_ytd = sum(pl_value(rows, "gross_profit", m, "budget") for m in range(1, to_m + 1))
-gp_done = gp_fact_ytd / gp_budget_ytd * 100 if gp_budget_ytd else 0
-
-np_fact_ytd = _ytd_fact("net_profit")
-np_budget_ytd = pl_value(rows, "net_profit", to_m, "budget")  # колонка acc = уже YTD
-np_done = np_fact_ytd / np_budget_ytd * 100 if np_budget_ytd else 0
-
-chart_card_open(f"Выполнение бюджета · YTD (январь — {MONTH_NAMES_RU[to_m - 1].lower()})",
-                "Факт с начала года / Бюджет, % (цель — 100%)")
+chart_card_open(f"Выполнение бюджета · {period_label}",
+                "Факт / Бюджет за выбранный период, % (цель — 100%)")
 gc1, gc2 = st.columns(2)
 gc1.plotly_chart(gauge(gp_done, "Маржинальная прибыль", vmax=max(150, gp_done * 1.15),
                        target=100, color="#2FD9A6"),
                  use_container_width=True, config={"displayModeBar": False})
-gc2.plotly_chart(gauge(np_done, "Чистая прибыль", vmax=max(150, np_done * 1.15),
+gc2.plotly_chart(gauge(np_done, "Чистая прибыль", vmax=max(150, abs(np_done) * 1.15),
                        target=100, color="#F5B544"),
                  use_container_width=True, config={"displayModeBar": False})
 chart_card_close()
