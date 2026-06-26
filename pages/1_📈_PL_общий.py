@@ -118,13 +118,11 @@ for col, (label, val, prev, key, color, short) in zip(st.columns(4), kpi_defs):
                         use_container_width=True, config={"displayModeBar": False})
 
 # ===== Гейджи: выполнение бюджета за выбранный период =====
-# Бюджет маржи (валовой прибыли) — помесячный (суммируем за период);
-# чистой прибыли — накопительный (acc): берём разницу acc(по) − acc(до начала периода).
+# Бюджет и маржи (GP), и чистой прибыли — помесячный: суммируем за выбранный период.
 gp_budget = sum(pl_value(rows, "gross_profit", m, "budget") for m in range(from_m, to_m + 1))
 gp_done = gross_profit / gp_budget * 100 if gp_budget else 0
 
-np_budget = (pl_value(rows, "net_profit", to_m, "budget")
-             - (pl_value(rows, "net_profit", from_m - 1, "budget") if from_m > 1 else 0))
+np_budget = sum(pl_value(rows, "net_profit", m, "budget") for m in range(from_m, to_m + 1))
 np_done = net_profit / np_budget * 100 if np_budget else 0
 
 chart_card_open(f"Выполнение бюджета · {period_label}",
