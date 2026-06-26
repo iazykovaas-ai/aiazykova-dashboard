@@ -16,11 +16,11 @@ from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT,
                     TARGET_MONTH, TARGET_YEAR)
 from data.sheets_loader import load_pl_global_raw, pl_series, pl_value
 
-st.set_page_config(page_title="PL общий", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Финансовые результаты", page_icon="📈", layout="wide")
 apply()
 render_assistant()
 
-hero(f"📈 PL общий · {TARGET_YEAR}",
+hero(f"📈 Финансовые результаты · {TARGET_YEAR}",
      "Общий отчёт о прибылях и убытках компании · по данным PL GLOBAL")
 
 # ===== Переключатель периода =====
