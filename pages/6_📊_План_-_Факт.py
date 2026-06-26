@@ -19,7 +19,7 @@ st.set_page_config(page_title="Факторный анализ", page_icon="📊
 apply()
 render_assistant()
 
-hero("📊 Факторный анализ",
+hero("📊 План - Факт",
      "Что развело Бюджет и Факт и что изменилось от периода к периоду")
 
 rows = load_pl_global_raw()
