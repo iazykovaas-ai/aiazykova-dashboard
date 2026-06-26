@@ -256,7 +256,7 @@ def chart_card_close() -> None:
 def style_plotly_3d(fig, height: int = 460):
     fig.update_layout(
         height=height,
-        margin=dict(l=0, r=0, t=10, b=0),
+        margin=dict(l=20, r=10, t=10, b=25),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="-apple-system, Segoe UI, Roboto, sans-serif",

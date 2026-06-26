@@ -315,13 +315,13 @@ with vcol1:
 chart_card_open(f"Структура OPEX · {period_label}",
                 ("3D · " if view3d else "2D · ") + "по группам расходов, тыс. USD")
 opex_groups = [
-    ("opex_software_it",  "Software & IT",      "Расходы на ПО и ИТ",          "#8B7BF0"),
+    ("opex_software_it",  "Software",           "Расходы на ПО и ИТ",          "#8B7BF0"),
     ("opex_marketing",    "Marketing",          "Маркетинг и реклама",         "#2FD9A6"),
     ("opex_personnel",    "Personnel",          "Расходы на персонал",         "#F5B544"),
     ("opex_ga",           "G&A",                "Общехоз. и админ. расходы",   "#E94FA1"),
-    ("opex_consulting",   "Consulting & Audit", "Консалтинг и аудит",          "#4A7DFF"),
-    ("opex_legal",        "Legal & Compliance", "Юридические и комплаенс",     "#3FE0C5"),
-    ("opex_other",        "Other Operating",    "Прочие операционные расходы", "#FF8AC4"),
+    ("opex_consulting",   "Consulting",         "Консалтинг и аудит",          "#4A7DFF"),
+    ("opex_legal",        "Legal",              "Юридические и комплаенс",     "#3FE0C5"),
+    ("opex_other",        "Other",              "Прочие операционные расходы", "#FF8AC4"),
 ]
 ovals = [(le, lr, abs(fv(k)), c) for k, le, lr, c in opex_groups]
 if view3d:
