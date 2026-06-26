@@ -306,8 +306,7 @@ with tab_funnel:
 
 st.markdown("---")
 
-# --- Структура OPEX (горизонтальные бары) ---
-chart_card_open(f"Структура OPEX · {period_label}", "по группам расходов, тыс. USD")
+# --- Структура OPEX (бары / treemap) ---
 opex_groups = [
     ("opex_software_it",  "Software & IT",      "Расходы на ПО и ИТ",          "#8B7BF0"),
     ("opex_marketing",    "Marketing",          "Маркетинг и реклама",         "#2FD9A6"),
@@ -318,43 +317,69 @@ opex_groups = [
     ("opex_other",        "Other Operating",    "Прочие операционные расходы", "#FF8AC4"),
 ]
 ovals = [(le, lr, abs(fv(k)), c) for k, le, lr, c in opex_groups]
-order = sorted(ovals, key=lambda t: t[2])   # по возрастанию -> крупные сверху
-fig = go.Figure(go.Bar(
-    x=[t[2] for t in order], y=[t[0] for t in order], orientation="h",
-    marker=dict(color=[t[3] for t in order], line=dict(width=0)),
-    text=[fmt_kusd(t[2]) for t in order], textposition="outside",
-    textfont=dict(color=PALETTE["ink"], size=12),
-    customdata=[t[1] for t in order],
-    hovertemplate="<b>%{y}</b><br>%{customdata}<br>%{text}<extra></extra>"))
-style_plotly_2d(fig, height=430)
-fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True),
-                  yaxis=dict(showgrid=False))
+opex_view = st.radio("Вид структуры OPEX", ["Бары", "Treemap"], horizontal=True, key="opex_view")
+chart_card_open(f"Структура OPEX · {period_label}", "по группам расходов, тыс. USD")
+if opex_view == "Бары":
+    order = sorted(ovals, key=lambda t: t[2])
+    fig = go.Figure(go.Bar(
+        x=[t[2] for t in order], y=[t[0] for t in order], orientation="h",
+        marker=dict(color=[t[3] for t in order], line=dict(width=0)),
+        text=[fmt_kusd(t[2]) for t in order], textposition="outside",
+        textfont=dict(color=PALETTE["ink"], size=12),
+        customdata=[t[1] for t in order],
+        hovertemplate="<b>%{y}</b><br>%{customdata}<br>%{text}<extra></extra>"))
+    style_plotly_2d(fig, height=430)
+    fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True),
+                      yaxis=dict(showgrid=False))
+else:
+    fig = go.Figure(go.Treemap(
+        labels=[t[0] for t in ovals], parents=[""] * len(ovals),
+        values=[t[2] for t in ovals],
+        marker=dict(colors=[t[3] for t in ovals], line=dict(color="#0A0E20", width=2)),
+        customdata=[f"{t[1]} · {fmt_kusd(t[2])}" for t in ovals],
+        texttemplate="<b>%{label}</b><br>%{value:.0f} тыс. $<br>%{percentRoot}",
+        textfont=dict(size=14, color="#0A0E20"),
+        hovertemplate="<b>%{label}</b><br>%{customdata}<extra></extra>"))
+    fig.update_layout(height=440, margin=dict(l=6, r=6, t=6, b=6),
+                      paper_bgcolor="rgba(0,0,0,0)", separators=". ")
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 chart_card_close()
 
-# --- Динамика по месяцам (площадь с градиентом, выбор метрики) ---
+# --- Динамика по месяцам (площадь / бары, выбор метрики) ---
 DYN_METRICS = [("revenue", "Выручка", "#8B7BF0"),
                ("gross_profit", "Валовая прибыль", "#36C5F0"),
                ("operating_profit", "Операционная прибыль", "#2FD9A6"),
                ("net_profit", "Чистая прибыль", "#F5B544")]
 dmap = {k: (l, c) for k, l, c in DYN_METRICS}
-dsel = st.selectbox("Метрика динамики", [k for k, _, _ in DYN_METRICS],
-                    format_func=lambda k: dmap[k][0], key="pl_dyn_metric")
+dc1, dc2 = st.columns([2, 1])
+with dc1:
+    dsel = st.selectbox("Метрика динамики", [k for k, _, _ in DYN_METRICS],
+                        format_func=lambda k: dmap[k][0], key="pl_dyn_metric")
+with dc2:
+    dyn_view = st.radio("Тип", ["Площадь", "Бары"], horizontal=True, key="pl_dyn_view")
 dlabel, dcolor = dmap[dsel]
 chart_card_open(f"Динамика · {dlabel} · {TARGET_YEAR}", "по месяцам, тыс. USD")
 series = pl_series(rows, dsel, "fact", 2026)
 valid = [(i, v) for i, v in enumerate(series, 1) if v != 0]
 xs = [MONTH_NAMES_SHORT[m - 1] for m, _ in valid]
 ys = [v for _, v in valid]
-_r, _g, _b = int(dcolor[1:3], 16), int(dcolor[3:5], 16), int(dcolor[5:7], 16)
-fig = go.Figure(go.Scatter(
-    x=xs, y=ys, mode="lines+markers+text",
-    line=dict(color=dcolor, width=3, shape="spline"),
-    marker=dict(size=9, color=dcolor, line=dict(color="#0A0E20", width=1)),
-    fill="tozeroy", fillcolor=f"rgba({_r},{_g},{_b},0.18)",
-    text=[fmt_kusd(v) for v in ys], textposition="top center",
-    textfont=dict(color=PALETTE["ink"], size=11),
-    hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
+if dyn_view == "Площадь":
+    _r, _g, _b = int(dcolor[1:3], 16), int(dcolor[3:5], 16), int(dcolor[5:7], 16)
+    fig = go.Figure(go.Scatter(
+        x=xs, y=ys, mode="lines+markers+text",
+        line=dict(color=dcolor, width=3, shape="spline"),
+        marker=dict(size=9, color=dcolor, line=dict(color="#0A0E20", width=1)),
+        fill="tozeroy", fillcolor=f"rgba({_r},{_g},{_b},0.18)",
+        text=[fmt_kusd(v) for v in ys], textposition="top center",
+        textfont=dict(color=PALETTE["ink"], size=11),
+        hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
+else:
+    fig = go.Figure(go.Bar(
+        x=xs, y=ys,
+        marker=dict(color=[dcolor if v >= 0 else "#FF5C7A" for v in ys], line=dict(width=0)),
+        text=[fmt_kusd(v) for v in ys], textposition="outside",
+        textfont=dict(color=PALETTE["ink"], size=11),
+        hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
 style_plotly_2d(fig, height=420)
 fig.update_layout(xaxis=dict(showgrid=False))
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
