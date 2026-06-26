@@ -71,7 +71,7 @@ with left:
         x=df_cnt["Кол-во"], y=df_cnt["Тип"], orientation="h",
         marker=dict(
             color=df_cnt["Кол-во"],
-            colorscale=[[0, "#D4C5F9"], [1, "#9B86C7"]],
+            colorscale=[[0, "#1B3A6B"], [1, "#36C5F0"]],
             line=dict(width=0),
         ),
         text=df_cnt["Кол-во"],
@@ -94,7 +94,7 @@ with right:
         x=df_avg["Средний"], y=df_avg["Тип"], orientation="h",
         marker=dict(
             color=df_avg["Средний"],
-            colorscale=[[0, "#B8DCC8"], [1, "#7FC9A8"]],
+            colorscale=[[0, "#16513E"], [1, "#2FD9A6"]],
             line=dict(width=0),
         ),
         text=[f"{v:.2f}" for v in df_avg["Средний"]],

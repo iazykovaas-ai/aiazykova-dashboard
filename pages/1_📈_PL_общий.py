@@ -193,9 +193,9 @@ with tab_wf:
         textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=12),
         connector=dict(line=dict(color=PALETTE["line"], width=1)),
-        increasing=dict(marker=dict(color="#9DD8BE")),
-        decreasing=dict(marker=dict(color="#EFA9C0")),
-        totals=dict(marker=dict(color="#B8A3DC")),
+        increasing=dict(marker=dict(color="#2FD9A6")),
+        decreasing=dict(marker=dict(color="#FF5C7A")),
+        totals=dict(marker=dict(color="#8B7BF0")),
     ))
     style_plotly_2d(wf, height=440)
     wf.update_layout(yaxis=dict(title="тыс. USD"), xaxis=dict(showgrid=False))
@@ -222,15 +222,15 @@ with tab_alt:
                        abs(fv("opex_legal")),
                        abs(fv("opex_other")),
                        abs(tax)]
-        cost_pal = ["#B8DCC8",  # Прямые расходы — шалфей
-                    "#B8A3DC",  # Software & IT — лаванда
-                    "#9DD8BE",  # Marketing — мята
-                    "#F0C8A0",  # Personnel — персик
-                    "#EFA9C0",  # G&A — роза
-                    "#A9C9EE",  # Consulting — небо
-                    "#F0DBA0",  # Legal — ваниль
-                    "#C5B2EC",  # Other Operating — сирень
-                    "#D4D0E2"]  # Налог — серо-лавандовый
+        cost_pal = ["#36C5F0",  # Прямые расходы — шалфей
+                    "#8B7BF0",  # Software & IT — лаванда
+                    "#2FD9A6",  # Marketing — мята
+                    "#F5B544",  # Personnel — персик
+                    "#E94FA1",  # G&A — магента
+                    "#4A7DFF",  # Consulting — небо
+                    "#3FE0C5",  # Legal — ваниль
+                    "#FF8AC4",  # Other Operating — сирень
+                    "#8A90B8"]  # Налог — серо-лавандовый
         fig = go.Figure(go.Pie(
             labels=cost_labels, values=cost_values, hole=0.6,
             marker=dict(colors=cost_pal, line=dict(color="white", width=2)),
@@ -263,10 +263,10 @@ with tab_alt:
             op_pct.append(pl_value(rows, "operating_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
             np_pct.append(pl_value(rows, "net_profit", m, "fact", TARGET_YEAR) / turnover_m * 100)
         fig = go.Figure()
-        for name, vals, color in [("GP / Оборот", gp_pct, "#B8A3DC"),
-                                  ("GP+FX / Оборот", gp_fx_pct, "#A9C9EE"),
-                                  ("OP / Оборот", op_pct, "#9DD8BE"),
-                                  ("Net / Оборот", np_pct, "#F0C8A0")]:
+        for name, vals, color in [("GP / Оборот", gp_pct, "#8B7BF0"),
+                                  ("GP+FX / Оборот", gp_fx_pct, "#4A7DFF"),
+                                  ("OP / Оборот", op_pct, "#2FD9A6"),
+                                  ("Net / Оборот", np_pct, "#F5B544")]:
             fig.add_trace(go.Scatter(
                 x=months_axis, y=vals, mode="lines+markers",
                 name=name,
@@ -317,13 +317,13 @@ st.markdown("---")
 chart_card_open(f"Структура OPEX · {month_name} {TARGET_YEAR}",
                 "3D · по группам расходов, тыс. USD")
 opex_groups = [
-    ("opex_software_it",  "Software & IT",      "Расходы на ПО и ИТ",          "#B8A3DC"),
-    ("opex_marketing",    "Marketing",          "Маркетинг и реклама",         "#9DD8BE"),
-    ("opex_personnel",    "Personnel",          "Расходы на персонал",         "#F0C8A0"),
-    ("opex_ga",           "G&A",                "Общехоз. и админ. расходы",   "#EFA9C0"),
-    ("opex_consulting",   "Consulting & Audit", "Консалтинг и аудит",          "#A9C9EE"),
-    ("opex_legal",        "Legal & Compliance", "Юридические и комплаенс",     "#F0DBA0"),
-    ("opex_other",        "Other Operating",    "Прочие операционные расходы", "#C5B2EC"),
+    ("opex_software_it",  "Software & IT",      "Расходы на ПО и ИТ",          "#8B7BF0"),
+    ("opex_marketing",    "Marketing",          "Маркетинг и реклама",         "#2FD9A6"),
+    ("opex_personnel",    "Personnel",          "Расходы на персонал",         "#F5B544"),
+    ("opex_ga",           "G&A",                "Общехоз. и админ. расходы",   "#E94FA1"),
+    ("opex_consulting",   "Consulting & Audit", "Консалтинг и аудит",          "#4A7DFF"),
+    ("opex_legal",        "Legal & Compliance", "Юридические и комплаенс",     "#3FE0C5"),
+    ("opex_other",        "Other Operating",    "Прочие операционные расходы", "#FF8AC4"),
 ]
 fig = go.Figure()
 labels = []
@@ -364,7 +364,7 @@ with left:
             x0=idx - 0.35, x1=idx + 0.35,
             y0=-0.35, y1=0.35,
             z0=0, z1=v,
-            color="#B8A3DC",
+            color="#8B7BF0",
             name=f"{MONTH_NAMES_SHORT[m - 1]}: {fmt_kusd(v)}",
         ))
     fig.update_layout(
@@ -387,7 +387,7 @@ with right:
     valid = [(i, v) for i, v in enumerate(np_series, 1) if v != 0]
     fig = go.Figure()
     for idx, (m, v) in enumerate(valid):
-        color = "#9DD8BE" if v >= 0 else "#EFA9C0"
+        color = "#2FD9A6" if v >= 0 else "#FF5C7A"
         z0, z1 = (0, v) if v >= 0 else (v, 0)
         fig.add_trace(cuboid_mesh(
             x0=idx - 0.35, x1=idx + 0.35,

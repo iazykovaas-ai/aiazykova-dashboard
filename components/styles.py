@@ -332,8 +332,8 @@ def cuboid_mesh(x0, x1, y0, y1, z0, z1, color, name=""):
         x=x, y=y, z=z, i=i, j=j, k=k,
         color=color, name=name,
         flatshading=True, opacity=1.0, showscale=False,
-        lighting=dict(ambient=0.65, diffuse=0.8, specular=0.2,
-                      roughness=0.55, fresnel=0.1),
+        lighting=dict(ambient=0.55, diffuse=0.9, specular=0.32,
+                      roughness=0.4, fresnel=0.15),
         lightposition=dict(x=100, y=200, z=200),
         hoverinfo="name",
     )

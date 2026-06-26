@@ -54,14 +54,14 @@ for i, (_, row) in enumerate(df.iterrows()):
         x0=i - 0.40, x1=i - 0.05,
         y0=-0.30, y1=0.30,
         z0=0, z1=need_m,
-        color="#EFA9C0",
+        color="#FF5C7A",
         name=f"{row['Срок']} · Потребность: {fmt_usd(row['Потребность, USD'])}",
     ))
     fig.add_trace(cuboid_mesh(
         x0=i + 0.05, x1=i + 0.40,
         y0=-0.30, y1=0.30,
         z0=0, z1=avail_m,
-        color="#9DD8BE",
+        color="#2FD9A6",
         name=f"{row['Срок']} · Доступно: {fmt_usd(row['Доступно, USD'])}",
     ))
 fig.update_layout(
@@ -79,11 +79,11 @@ st.markdown(
     """
     <div style="display:flex;gap:24px;justify-content:center;margin-top:-8px;">
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="width:14px;height:14px;background:#EFA9C0;border-radius:4px;"></span>
+        <span style="width:14px;height:14px;background:#FF5C7A;border-radius:4px;"></span>
         <span style="color:#B6BCE4;font-size:0.88rem;">Потребность</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="width:14px;height:14px;background:#9DD8BE;border-radius:4px;"></span>
+        <span style="width:14px;height:14px;background:#2FD9A6;border-radius:4px;"></span>
         <span style="color:#B6BCE4;font-size:0.88rem;">Доступно</span>
       </div>
     </div>
@@ -94,7 +94,7 @@ chart_card_close()
 
 # Gap waterfall
 chart_card_open("Gap по срокам", "Доступно − Потребность")
-colors = ["#9DD8BE" if g >= 0 else "#EFA9C0" for g in df["Gap"]]
+colors = ["#2FD9A6" if g >= 0 else "#FF5C7A" for g in df["Gap"]]
 fig = go.Figure(go.Bar(
     x=df["Срок"], y=df["Gap"] / 1_000_000,
     marker=dict(color=colors, line=dict(width=0)),
