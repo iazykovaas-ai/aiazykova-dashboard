@@ -12,6 +12,9 @@ SPREADSHEET_ID = "1IE-ViT-bX6CYN6OZBvdgUPKEFoyywro8cWX287NWfyE"
 # Таблица «Мониторинг» (дневной мониторинг по дате закрытия сделки)
 MONITORING_SPREADSHEET_ID = "16WYf82yG19ILCX1KfEgLuoVn-WToDSAQtXW6p2cDIgE"
 
+# Книга «ИИ GLOBAL Бизнес-Модель» — бюджет/факт по сегментам
+BUSINESS_MODEL_SPREADSHEET_ID = "1jI6__M_o-i4OvzhGntjgGLViAmFVzWYqesZrcNu8E7k"
+
 # Последний закрытый месяц для дашборда (1=Jan ... 12=Dec)
 TARGET_MONTH = 4   # Apr
 TARGET_YEAR = 2026
@@ -26,6 +29,8 @@ SHEETS = {
     "business_block": {"spreadsheet_id": SPREADSHEET_ID, "worksheet": "Бизнес-блок"},
     "monitoring": {"spreadsheet_id": MONITORING_SPREADSHEET_ID,
                    "worksheet": "Мониторинг по дате закрытия сделки"},
+    "rebudget": {"spreadsheet_id": BUSINESS_MODEL_SPREADSHEET_ID, "worksheet": "2026 Ребюджет"},
+    "fact_forecast": {"spreadsheet_id": BUSINESS_MODEL_SPREADSHEET_ID, "worksheet": "Факт - прогноз"},
 }
 
 CACHE_TTL_SECONDS = 300
@@ -150,3 +155,23 @@ PL_FACT_2026_COLS = {m: 17 + (m - 1) * 2 for m in range(1, 13)}
 PL_FACT_2025_COLS = {m: 4 + m for m in range(1, 13)}
 # Колонки бюджета 2026: Jan=51 (AY) ... Dec=62 (BJ)
 PL_BUDGET_2026_COLS = {m: 50 + m for m in range(1, 13)}
+
+# ============= СЕГМЕНТЫ: бюджет (2026 Ребюджет) и факт (Факт - прогноз) =============
+# Строки сегментов маржинальной прибыли ОДИНАКОВЫ в обоих листах; различаются только столбцы.
+SEG_MARGIN_ROWS = [
+    (10, "Опт. банки"),
+    (19, "Банк. импорт"),
+    (29, "Опт. клиенты"),
+    (37, "Прямой импорт"),
+    (45, "Конвертация"),
+    (53, "Спец клиенты"),
+    (56, "Sber импорт"),
+    (60, "Sber конверт."),
+    (64, "Экспорт"),
+    (68, "Партнёры"),
+    (71, "Дилинг"),
+    (74, "TD"),
+]
+SEG_MARGIN_TOTAL_ROW = 5                       # итог «Маржинальная прибыль, USD»
+SEG_BUDGET_COL = {m: 13 + m for m in range(1, 13)}   # Ребюджет N..Y = янв..дек (май=18)
+SEG_FACT_COL = {m: 22 + m for m in range(1, 7)}      # Факт-прогноз W..AB = янв..июн (май=27)

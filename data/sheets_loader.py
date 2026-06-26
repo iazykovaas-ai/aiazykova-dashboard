@@ -259,6 +259,55 @@ def mon_line_breakdown(rows: list[list[str]], metric: str, month: int) -> dict[s
     return out
 
 
+# ============= СЕГМЕНТЫ: бюджет (2026 Ребюджет) / факт (Факт - прогноз) =============
+from config import (SEG_BUDGET_COL, SEG_FACT_COL, SEG_MARGIN_ROWS,  # noqa: E402
+                    SEG_MARGIN_TOTAL_ROW)
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю Ребюджет…")
+def load_rebudget_raw() -> list[list[str]]:
+    return _open_sheet("rebudget").get_all_values()
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю Факт-прогноз…")
+def load_fact_forecast_raw() -> list[list[str]]:
+    return _open_sheet("fact_forecast").get_all_values()
+
+
+def seg_margin_budget(month: int) -> dict:
+    """Бюджет маржи по сегментам за месяц (лист «2026 Ребюджет», N..Y)."""
+    raw = load_rebudget_raw()
+    col = SEG_BUDGET_COL[month]
+    return {label: parse_ru_number(_cell(raw, r, col)) for r, label in SEG_MARGIN_ROWS}
+
+
+def seg_margin_fact(month: int) -> dict:
+    """Факт маржи по сегментам за месяц (лист «Факт - прогноз», W..AB)."""
+    col = SEG_FACT_COL.get(month)
+    if col is None:
+        return {}
+    raw = load_fact_forecast_raw()
+    return {label: parse_ru_number(_cell(raw, r, col)) for r, label in SEG_MARGIN_ROWS}
+
+
+def seg_margin_total(month: int, source: str) -> float:
+    """Итог маржи (строка 5) за месяц: source='budget' | 'fact'."""
+    if source == "budget":
+        raw, col = load_rebudget_raw(), SEG_BUDGET_COL.get(month)
+    else:
+        raw, col = load_fact_forecast_raw(), SEG_FACT_COL.get(month)
+    if col is None:
+        return 0.0
+    return parse_ru_number(_cell(raw, SEG_MARGIN_TOTAL_ROW, col))
+
+
+def seg_fact_months() -> list:
+    """Месяцы (1..6), где в Факт-прогнозе есть фактический итог маржи."""
+    raw = load_fact_forecast_raw()
+    return [m for m, col in SEG_FACT_COL.items()
+            if parse_ru_number(_cell(raw, SEG_MARGIN_TOTAL_ROW, col)) != 0]
+
+
 # ============= СТАБ (на случай отсутствия доступа) =============
 def load_stub(key: str) -> pd.DataFrame:
     """Минимальные демо-данные."""
