@@ -1,130 +1,129 @@
 import sys
 from pathlib import Path
 
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from components.assistant import render_assistant
-from components.kpi import format_money
-from components.styles import (CHART_COLORS, PALETTE, apply,
-                               chart_card_close, chart_card_open, cuboid_mesh,
-                               hero, style_plotly_2d, style_plotly_3d)
-from data.sheets_loader import load
+from components.kpi import fmt_kusd
+from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
+                               hero, style_plotly_2d)
+from config import MONTH_NAMES_RU, MONTH_NAMES_SHORT, TARGET_MONTH, TARGET_YEAR
+from data.sheets_loader import load_pl_global_raw, pl_value
 
 st.set_page_config(page_title="План vs Факт", page_icon="🎯", layout="wide")
 apply()
 render_assistant()
 
-hero("🎯 План vs Факт", "Квартальный план (Бюджет M1 + Бюджет M2 + Ребюджет M3) vs факт")
+hero("🎯 План vs Факт",
+     "Факт против бюджета по PL GLOBAL · выберите период (месяц или диапазон)")
 
-df = load("plan_fact", use_stub=True)
+rows = load_pl_global_raw()
 
-total_plan = df["План"].sum()
-total_fact = df["Факт"].sum()
-delta_abs = total_fact - total_plan
-delta_pct = (total_fact / total_plan - 1) * 100 if total_plan else 0
-done_pct = total_fact / total_plan * 100 if total_plan else 0
+# Метрики, по которым в PL GLOBAL заполнен бюджет (выручка/прямые расходы — пусто, не показываем).
+PF_METRICS = [
+    ("turnover",          "Оборот"),
+    ("gross_profit",      "Маржинальная прибыль"),
+    ("opex",              "OPEX"),
+    ("net_profit",        "Чистая прибыль"),
+]
+KPI_KEYS = ["turnover", "gross_profit", "net_profit"]   # для верхних карточек
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("План квартала", format_money(total_plan))
-c2.metric("Факт", format_money(total_fact), f"{delta_pct:+.1f}%")
-c3.metric("Отклонение", format_money(delta_abs))
-c4.metric("Выполнение", f"{done_pct:.1f}%")
+
+def pl_sum(metric, m_from, m_to, source):
+    return sum(pl_value(rows, metric, m, source) for m in range(m_from, m_to + 1))
+
+
+# ===== Переключатель периода =====
+st.markdown("##### 📅 Период")
+c_from, c_to = st.columns(2)
+with c_from:
+    from_m = st.selectbox("С месяца", list(range(1, 13)),
+                          format_func=lambda x: MONTH_NAMES_RU[x - 1], index=0, key="pf_from")
+with c_to:
+    to_m = st.selectbox("По месяц", list(range(1, 13)),
+                        format_func=lambda x: MONTH_NAMES_RU[x - 1],
+                        index=TARGET_MONTH - 1, key="pf_to")
+if from_m > to_m:
+    from_m, to_m = to_m, from_m
+period_label = (f"{MONTH_NAMES_RU[from_m - 1]} {TARGET_YEAR}" if from_m == to_m
+                else f"{MONTH_NAMES_RU[from_m - 1]} — {MONTH_NAMES_RU[to_m - 1]} {TARGET_YEAR}")
+
+# ===== KPI: факт + % к плану за период =====
+cols = st.columns(len(KPI_KEYS))
+labels = dict(PF_METRICS)
+for col, key in zip(cols, KPI_KEYS):
+    fact = pl_sum(key, from_m, to_m, "fact")
+    budget = pl_sum(key, from_m, to_m, "budget")
+    done = fact / budget * 100 if budget else None
+    delta = f"{done - 100:+.1f}% к плану" if done is not None else "нет плана"
+    col.metric(labels[key], fmt_kusd(fact), delta)
 
 st.markdown("")
 
-# 3D-стек: план и факт по месяцам
-chart_card_open("План vs Факт по месяцам", "3D · млн $")
+# ===== План vs Факт по месяцам (выбранная метрика) =====
+m_sel = st.selectbox("Метрика для графика", KPI_KEYS,
+                     format_func=lambda k: labels[k], key="pf_metric")
+chart_card_open(f"План vs Факт по месяцам · {labels[m_sel]} · {period_label}", "тыс. USD")
+months = list(range(from_m, to_m + 1))
+plan = [pl_value(rows, m_sel, m, "budget") for m in months]
+fact = [pl_value(rows, m_sel, m, "fact") for m in months]
+xnames = [MONTH_NAMES_SHORT[m - 1] for m in months]
 fig = go.Figure()
-for i, (_, row) in enumerate(df.iterrows()):
-    plan_mln = row["План"] / 1_000_000
-    fact_mln = row["Факт"] / 1_000_000
-    # план — слева, факт — справа
-    fig.add_trace(cuboid_mesh(
-        x0=i - 0.40, x1=i - 0.05,
-        y0=-0.30, y1=0.30,
-        z0=0, z1=plan_mln,
-        color="#B8A3DC",
-        name=f"{row['Месяц']} · План: {plan_mln:.1f} млн $",
-    ))
-    fig.add_trace(cuboid_mesh(
-        x0=i + 0.05, x1=i + 0.40,
-        y0=-0.30, y1=0.30,
-        z0=0, z1=fact_mln,
-        color="#9DD8BE" if fact_mln >= plan_mln else "#EFA9C0",
-        name=f"{row['Месяц']} · Факт: {fact_mln:.1f} млн $",
-    ))
-fig.update_layout(
-    scene=dict(
-        xaxis=dict(tickmode="array", tickvals=list(range(len(df))),
-                   ticktext=df["Месяц"].tolist(), title=""),
-        yaxis=dict(showticklabels=False, title=""),
-        zaxis=dict(title="млн $"),
-    ),
-    showlegend=False,
-)
-style_plotly_3d(fig, height=460)
+fig.add_trace(go.Bar(
+    x=xnames, y=plan, name="План", marker=dict(color="#8B7BF0"),
+    text=[fmt_kusd(v) for v in plan], textposition="outside",
+    textfont=dict(color=PALETTE["ink"], size=10),
+    hovertemplate="<b>%{x}</b><br>План: %{text}<extra></extra>",
+))
+fig.add_trace(go.Bar(
+    x=xnames, y=fact, name="Факт",
+    marker=dict(color=["#2FD9A6" if f >= p else "#FF5C7A" for f, p in zip(fact, plan)]),
+    text=[fmt_kusd(v) for v in fact], textposition="outside",
+    textfont=dict(color=PALETTE["ink"], size=10),
+    hovertemplate="<b>%{x}</b><br>Факт: %{text}<extra></extra>",
+))
+style_plotly_2d(fig, height=420)
+fig.update_layout(barmode="group", xaxis=dict(showgrid=False),
+                  legend=dict(orientation="h", y=1.12))
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-
-# Легенда вручную
-st.markdown(
-    """
-    <div style="display:flex;gap:24px;justify-content:center;margin-top:-8px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="width:14px;height:14px;background:#B8A3DC;border-radius:4px;"></span>
-        <span style="color:#B6BCE4;font-size:0.88rem;">План</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="width:14px;height:14px;background:#9DD8BE;border-radius:4px;"></span>
-        <span style="color:#B6BCE4;font-size:0.88rem;">Факт (выполнен)</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="width:14px;height:14px;background:#EFA9C0;border-radius:4px;"></span>
-        <span style="color:#B6BCE4;font-size:0.88rem;">Факт (недовыполнен)</span>
-      </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 chart_card_close()
 
-# % выполнения
-chart_card_open("Процент выполнения по месяцам", "Факт / План, %")
-df_done = df.assign(**{
-    "Выполнение %": (df["Факт"] / df["План"] * 100).round(1),
-})
+# ===== % выполнения плана по месяцам =====
+chart_card_open(f"Выполнение плана по месяцам · {labels[m_sel]}", "Факт / План, %")
+done_m = [fact[i] / plan[i] * 100 if plan[i] else 0 for i in range(len(months))]
+colors = ["#2FD9A6" if v >= 100 else "#FF5C7A" if v < 90 else "#F5B544" for v in done_m]
 fig = go.Figure(go.Bar(
-    x=df_done["Месяц"],
-    y=df_done["Выполнение %"],
-    marker=dict(
-        color=["#9DD8BE" if v >= 100 else "#EFA9C0" if v < 90 else "#F0DBA0"
-               for v in df_done["Выполнение %"]],
-        line=dict(width=0),
-    ),
-    text=[f"{v:.1f}%" for v in df_done["Выполнение %"]],
-    textposition="outside",
-    textfont=dict(color=PALETTE["ink"], size=13),
-    hovertemplate="<b>%{x}</b><br>Выполнение: %{y:.1f}%<extra></extra>",
-    width=0.5,
+    x=xnames, y=done_m, marker=dict(color=colors),
+    text=[f"{v:.0f}%" if v else "—" for v in done_m], textposition="outside",
+    textfont=dict(color=PALETTE["ink"], size=12),
+    hovertemplate="<b>%{x}</b><br>Выполнение: %{y:.1f}%<extra></extra>", width=0.5,
 ))
-# Линия 100%
 fig.add_hline(y=100, line=dict(color=PALETTE["muted"], width=1, dash="dash"),
               annotation_text="100%", annotation_position="right",
               annotation_font_color=PALETTE["muted"])
 style_plotly_2d(fig, height=320)
-fig.update_layout(yaxis=dict(ticksuffix="%", showgrid=True),
-                  xaxis=dict(showgrid=False))
+fig.update_layout(yaxis=dict(ticksuffix="%"), xaxis=dict(showgrid=False))
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 chart_card_close()
 
-# Таблица
-chart_card_open("Детализация", "")
-display = df.copy()
-display["Отклонение"] = display["Факт"] - display["План"]
-display["Выполнение, %"] = (display["Факт"] / display["План"] * 100).round(1).astype(str) + "%"
-for col in ("План", "Факт", "Отклонение"):
-    display[col] = display[col].apply(lambda v: format_money(v))
-st.dataframe(display, use_container_width=True, hide_index=True)
+# ===== Таблица: план/факт/отклонение по метрикам за период =====
+chart_card_open(f"Сводка за период · {period_label}", "")
+table = []
+for key, label in PF_METRICS:
+    budget = pl_sum(key, from_m, to_m, "budget")
+    if budget == 0:
+        continue
+    fact_v = pl_sum(key, from_m, to_m, "fact")
+    table.append({
+        "Метрика": label,
+        "Факт": fmt_kusd(fact_v),
+        "План": fmt_kusd(budget),
+        "Отклонение": fmt_kusd(fact_v - budget),
+        "Выполнение, %": f"{fact_v / budget * 100:.1f}%",
+    })
+st.dataframe(pd.DataFrame(table), use_container_width=True, hide_index=True)
 chart_card_close()
