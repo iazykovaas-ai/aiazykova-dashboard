@@ -128,12 +128,26 @@ np_done = net_profit / np_budget * 100 if np_budget else 0
 chart_card_open(f"Выполнение бюджета · {period_label}",
                 "Факт / Бюджет за выбранный период, % (цель — 100%)")
 gc1, gc2 = st.columns(2)
-gc1.plotly_chart(gauge(gp_done, "Маржинальная прибыль", vmax=max(150, gp_done * 1.15),
-                       target=100, color="#2FD9A6"),
-                 use_container_width=True, config={"displayModeBar": False})
-gc2.plotly_chart(gauge(np_done, "Чистая прибыль", vmax=max(150, abs(np_done) * 1.15),
-                       target=100, color="#F5B544"),
-                 use_container_width=True, config={"displayModeBar": False})
+
+
+def _render_gauge(col, pct, budget, title, color):
+    # Если бюджет за период <= 0 (напр. плановый убыток) — % выполнения не определён.
+    if budget <= 0:
+        col.markdown(
+            f"<div style='text-align:center;padding:48px 10px;'>"
+            f"<div style='color:#C7CCEC;font-weight:600;margin-bottom:10px;'>{title}</div>"
+            f"<div style='color:#8A90B8;font-size:0.9rem;'>Бюджет за период &le; 0<br>"
+            f"% выполнения не считается</div></div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        col.plotly_chart(gauge(pct, title, vmax=max(150, abs(pct) * 1.15),
+                               target=100, color=color),
+                         use_container_width=True, config={"displayModeBar": False})
+
+
+_render_gauge(gc1, gp_done, gp_budget, "Маржинальная прибыль", "#2FD9A6")
+_render_gauge(gc2, np_done, np_budget, "Чистая прибыль", "#F5B544")
 chart_card_close()
 
 st.markdown("")
