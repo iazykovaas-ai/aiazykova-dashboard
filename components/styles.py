@@ -67,6 +67,15 @@ _CSS = """
         color: #FFFFFF !important;
     }
 
+    /* Переименовать пункт меню главной страницы (app -> Дэшборд ВЭД-агентства) */
+    [data-testid="stSidebarNav"] ul li:first-child a span { display: none; }
+    [data-testid="stSidebarNav"] ul li:first-child a::after {
+        content: "Дэшборд ВЭД-агентства";
+        font-weight: 600;
+        color: #C7CCEC;
+    }
+    [data-testid="stSidebarNav"] ul li:first-child a[aria-current="page"]::after { color: #FFFFFF; }
+
     /* ===== Заголовки ===== */
     h1, h2, h3, h4 { color: #F2F3FA; letter-spacing: -0.02em; }
     h1 { font-weight: 700; }

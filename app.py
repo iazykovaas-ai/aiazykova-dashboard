@@ -4,7 +4,7 @@ from components.assistant import render_assistant
 from components.styles import apply, hero
 
 st.set_page_config(
-    page_title="Дашборд ВЭД-агентства",
+    page_title="Дэшборд ВЭД-агентства",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -13,7 +13,7 @@ apply()
 render_assistant()
 
 hero(
-    "Дашборд ВЭД-агентства",
+    "Дэшборд ВЭД-агентства",
     "Финансовые и операционные метрики · обновление каждые 5 минут",
 )
 
