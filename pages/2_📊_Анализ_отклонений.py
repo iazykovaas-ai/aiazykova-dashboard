@@ -349,12 +349,17 @@ with tab_pf:
 
     drivers = []
     for row_list, label in PNL_FACTORS:
-        var = (sum(pl_rows_value(rows, row_list, m, "fact") for m in months)
-               - sum(pl_rows_value(rows, row_list, m, "budget") for m in months))
+        bud = sum(pl_rows_value(rows, row_list, m, "budget") for m in months)
+        var = sum(pl_rows_value(rows, row_list, m, "fact") for m in months) - bud
         if abs(var) >= 0.5:
-            drivers.append((label, var))
+            drivers.append((label, var, bud))
     helped = sorted([d for d in drivers if d[1] > 0], key=lambda s: -s[1])[:3]
     hurt = sorted([d for d in drivers if d[1] < 0], key=lambda s: s[1])[:3]
+
+    def _drv(l, d, b):
+        # % = отклонение к плану статьи; где плана нет — без процента
+        p = f", {d / abs(b) * 100:+.0f}%" if b else ""
+        return f"{l} ({fmt_kusd(d)}{p})"
 
     net_dev = net_f - net_b
     parts = [f"#### 🧭 Общий анализ · {period_label}"]
@@ -368,18 +373,20 @@ with tab_pf:
     if gp_b:
         parts.append(
             f"**Валовая прибыль (маржа)** — {fmt_kusd(gp_f)} при плане {fmt_kusd(gp_b)} "
-            f"({'+' if gp_f >= gp_b else '−'}{fmt_kusd(abs(gp_f - gp_b))}).")
+            f"({'+' if gp_f >= gp_b else '−'}{fmt_kusd(abs(gp_f - gp_b))}, "
+            f"{gp_f / gp_b * 100 - 100:+.0f}%).")
     if opex_b:
         over = opex_f - opex_b   # расходы хранятся со знаком «−»: over<0 ⇒ перерасход
         parts.append(
             f"**OPEX** — {fmt_kusd(opex_f)} при плане {fmt_kusd(opex_b)} "
-            f"({'экономия' if over >= 0 else 'перерасход'} {fmt_kusd(abs(over))}).")
+            f"({'экономия' if over >= 0 else 'перерасход'} {fmt_kusd(abs(over))}, "
+            f"{over / abs(opex_b) * 100:+.0f}%).")
     if helped:
         parts.append("**Рост за счёт:** "
-                     + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in helped) + ".")
+                     + ", ".join(_drv(l, d, b) for l, d, b in helped) + ".")
     if hurt:
         parts.append("**Снижение за счёт:** "
-                     + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in hurt) + ".")
+                     + ", ".join(_drv(l, d, b) for l, d, b in hurt) + ".")
     st.markdown(_md("\n\n".join(parts)))
 
 # ========================= ПЕРИОД К ПЕРИОДУ =========================
