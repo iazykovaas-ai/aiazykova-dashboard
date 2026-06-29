@@ -32,24 +32,20 @@ PF_METRICS = [("turnover", "Оборот"), ("gross_profit", "Маржиналь
 KPI_KEYS = ["turnover", "gross_profit", "net_profit"]
 
 # Факторы P&L, складывающиеся в чистую прибыль (выручка/прямые расходы — внутри маржи)
-# Бюджет/Факт: финансовые одним фактором (бюджет задан только на агрегате).
-PNL_FACTORS_BF = [
-    ([35],  "Валовая прибыль (маржа)"),
-    ([54],  "Переоценка"),
-    ([55],  "Внутрибанковские конвертации"),
-    ([56],  "Нереализованные курсовые"),
-    ([57],  "OPEX"),
-    ([146], "Прочие доходы и расходы"),
-    ([168], "Финансовый результат"),
-    ([174], "Налог"),
-]
-# Период/период: детальная разбивка финансовых (бюджет не нужен — только факт).
-PNL_FACTORS_PP = [
+# Факторы = детальные статьи P&L (как переводили), без промежуточных прибылей (OP/PBT).
+# OPEX и финансовые разложены на статьи; в сумме дают чистую прибыль.
+PNL_FACTORS = [
     ([35],       "Валовая прибыль (маржа)"),
     ([54],       "Переоценка"),
     ([55],       "Внутрибанковские конвертации"),
     ([56],       "Нереализованные курсовые"),
-    ([57],       "OPEX"),
+    ([58],       "IT расходы"),
+    ([68],       "Маркетинг"),
+    ([76],       "Расходы на персонал"),
+    ([102],      "Общехоз. и админ. расходы"),
+    ([132],      "Консалтинг и аудит"),
+    ([138],      "Комплаенс"),
+    ([144],      "Прочие операционные расходы"),
     ([146],      "Прочие доходы и расходы"),
     ([169],      "Финансовые прибыли/убытки"),
     ([170, 171], "Хеджирование"),
@@ -239,7 +235,7 @@ with tab_pf:
         net_budget = pl_sum("net_profit", from_m, to_m, "budget")
         net_fact = pl_sum("net_profit", from_m, to_m, "fact")
         steps, covered = [], 0.0
-        for row_list, label in PNL_FACTORS_BF:
+        for row_list, label in PNL_FACTORS:
             bud = sum(pl_rows_value(rows, row_list, m, "budget") for m in months)
             var = sum(pl_rows_value(rows, row_list, m, "fact") for m in months) - bud
             if abs(var) < 0.5:        # пустые статьи не показываем
@@ -305,7 +301,7 @@ with tab_pp:
         net_prev = pl_sum("net_profit", prev_m, prev_m, "fact")
         net_cur = pl_sum("net_profit", cur_m, cur_m, "fact")
         steps = []
-        for row_list, label in PNL_FACTORS_PP:
+        for row_list, label in PNL_FACTORS:
             delta = (pl_rows_value(rows, row_list, cur_m, "fact")
                      - pl_rows_value(rows, row_list, prev_m, "fact"))
             if abs(delta) > 1:
