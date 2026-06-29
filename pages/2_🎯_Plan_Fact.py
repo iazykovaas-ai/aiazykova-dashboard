@@ -45,9 +45,9 @@ with c_from:
     from_m = st.selectbox("С месяца", list(range(1, 13)),
                           format_func=lambda x: MONTH_NAMES_RU[x - 1], key="pf_from")
 with c_to:
+    st.session_state.setdefault("pf_to", 1)
     to_m = st.selectbox("По месяц", list(range(1, 13)),
-                        format_func=lambda x: MONTH_NAMES_RU[x - 1],
-                        index=TARGET_MONTH - 1, key="pf_to")
+                        format_func=lambda x: MONTH_NAMES_RU[x - 1], key="pf_to")
 if from_m > to_m:
     from_m, to_m = to_m, from_m
 period_label = (f"{MONTH_NAMES_RU[from_m - 1]} {TARGET_YEAR}" if from_m == to_m

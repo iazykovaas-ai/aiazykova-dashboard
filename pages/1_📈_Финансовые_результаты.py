@@ -28,6 +28,7 @@ st.markdown("##### 📅 Период")
 col_from, col_to = st.columns(2)
 with col_from:
     st.session_state.setdefault("period_from", 1)   # при новой загрузке — Январь
+    st.session_state.setdefault("period_to", 1)
     from_m = st.selectbox(
         "С месяца", list(range(1, 13)),
         format_func=lambda x: MONTH_NAMES_RU[x - 1],
@@ -37,7 +38,7 @@ with col_to:
     to_m = st.selectbox(
         "По месяц", list(range(1, 13)),
         format_func=lambda x: MONTH_NAMES_RU[x - 1],
-        index=TARGET_MONTH - 1, key="period_to",
+        key="period_to",
     )
 if from_m > to_m:
     from_m, to_m = to_m, from_m  # тихо меняем местами, если перепутаны
