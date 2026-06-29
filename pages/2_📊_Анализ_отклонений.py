@@ -116,17 +116,17 @@ def show_bridge(kind, start_label, start_val, steps, end_label, end_val, title, 
         waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, subtitle)
 
 
-def insight_box(total_dev, steps):
+def insight_box(total_dev, steps, subject="Чистая прибыль"):
     """Краткий авто-вывод: общее отклонение + топ факторов вверх/вниз."""
     real = [(l, d) for l, d in steps if "Прочее" not in l]
     pos = sorted([s for s in real if s[1] > 0], key=lambda s: -s[1])[:2]
     neg = sorted([s for s in real if s[1] < 0], key=lambda s: s[1])[:2]
     dirn = "выше" if total_dev >= 0 else "ниже"
-    parts = [f"📌 **Итого {dirn} на {fmt_kusd(abs(total_dev))}.**"]
-    if neg:
-        parts.append("Снизили: " + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in neg) + ".")
+    parts = [f"📌 **Итого {subject} {dirn} на {fmt_kusd(abs(total_dev))}.**"]
     if pos:
-        parts.append("Помогли: " + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in pos) + ".")
+        parts.append("Рост за счёт: " + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in pos) + ".")
+    if neg:
+        parts.append("Снижение за счёт: " + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in neg) + ".")
     st.info(_md(" ".join(parts)))
 
 
@@ -274,7 +274,7 @@ with tab_pf:
             show_bridge(bf_kind, "Бюджет маржи", tot_b, steps, "Факт маржи", tot_f,
                              f"Бюджет → Факт маржинальной прибыли по сегментам · {plabel}",
                              "Вклад каждого сегмента в отклонение от плана (тыс. USD)")
-            insight_box(tot_f - tot_b, steps)
+            insight_box(tot_f - tot_b, steps, subject="Маржинальная прибыль")
 
     # ===================== ОБЩИЙ СВОД: все метрики =====================
     st.markdown("---")
@@ -365,12 +365,12 @@ with tab_pf:
         parts.append(
             f"**OPEX** — {fmt_kusd(opex_f)} при плане {fmt_kusd(opex_b)} "
             f"({'экономия' if over >= 0 else 'перерасход'} {fmt_kusd(abs(over))}).")
-    if hurt:
-        parts.append("**Снизили прибыль:** "
-                     + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in hurt) + ".")
     if helped:
-        parts.append("**Поддержали прибыль:** "
+        parts.append("**Рост за счёт:** "
                      + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in helped) + ".")
+    if hurt:
+        parts.append("**Снижение за счёт:** "
+                     + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in hurt) + ".")
     st.markdown(_md("\n\n".join(parts)))
 
 # ========================= ПЕРИОД К ПЕРИОДУ =========================
@@ -424,4 +424,4 @@ with tab_pp:
                              f"Маржа {MONTH_NAMES_RU[sc - 1]}", tot_cur,
                              f"Маржинальная прибыль по сегментам: {MONTH_NAMES_RU[sp - 1]} → {MONTH_NAMES_RU[sc - 1]} {TARGET_YEAR}",
                              "Вклад каждого сегмента в изменение (тыс. USD)")
-            insight_box(tot_cur - tot_prev, steps)
+            insight_box(tot_cur - tot_prev, steps, subject="Маржинальная прибыль")
