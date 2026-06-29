@@ -241,9 +241,9 @@ with tab_pf:
         steps, covered = [], 0.0
         for row_list, label in PNL_FACTORS_BF:
             bud = sum(pl_rows_value(rows, row_list, m, "budget") for m in months)
-            if bud == 0:
-                continue
             var = sum(pl_rows_value(rows, row_list, m, "fact") for m in months) - bud
+            if abs(var) < 0.5:        # пустые статьи не показываем
+                continue
             steps.append((label, var))
             covered += var
         residual = (net_fact - net_budget) - covered
