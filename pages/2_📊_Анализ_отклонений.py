@@ -35,7 +35,7 @@ KPI_KEYS = ["turnover", "gross_profit", "net_profit"]
 PNL_FACTORS = [
     ("gross_profit",      "Валовая прибыль (маржа)"),
     ("revaluation",       "Переоценка"),
-    ("realized_fx",       "Реализ. FX"),
+    ("realized_fx",       "Внутрибанк. конвертации"),
     ("unrealized_fx",     "Нереализ. FX"),
     ("opex",              "OPEX"),
     ("other_income",      "Прочие дох./расх."),
