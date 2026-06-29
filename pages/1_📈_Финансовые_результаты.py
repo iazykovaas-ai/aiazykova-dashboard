@@ -306,6 +306,10 @@ with tab_funnel:
 
 st.markdown("---")
 
+# Панель инструментов Plotly (кнопки «Сбросить масштаб» / «Автомасштаб»)
+_MB = {"displayModeBar": True, "displaylogo": False,
+       "modeBarButtonsToRemove": ["select2d", "lasso2d", "zoomIn2d", "zoomOut2d"]}
+
 # --- Структура OPEX (бары / treemap) ---
 opex_groups = [
     ("opex_software_it",  "Software & IT",      "Расходы на ПО и ИТ",          "#8B7BF0"),
@@ -342,7 +346,7 @@ else:
         hovertemplate="<b>%{label}</b><br>%{customdata}<extra></extra>"))
     fig.update_layout(height=440, margin=dict(l=6, r=6, t=6, b=6),
                       paper_bgcolor="rgba(0,0,0,0)", separators=". ")
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(fig, use_container_width=True, config=_MB)
 chart_card_close()
 
 # --- Динамика по месяцам (площадь / бары, выбор метрики) ---
@@ -382,7 +386,8 @@ else:
         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
 style_plotly_2d(fig, height=420)
 fig.update_layout(xaxis=dict(showgrid=False))
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(fig, use_container_width=True, config=_MB)
+st.caption("🔍 Увеличили график? Кнопка 🏠 в панели сверху справа (или двойной клик) — вернуть масштаб.")
 chart_card_close()
 
 # ===== Полная P&L таблица =====
