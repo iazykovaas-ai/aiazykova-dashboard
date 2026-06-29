@@ -63,7 +63,9 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
         totals=dict(marker=dict(color="#8B7BF0")),
     ))
     style_plotly_2d(fig, height=470)
-    fig.update_layout(yaxis=dict(title="тыс. USD"), xaxis=dict(showgrid=False, tickangle=-30))
+    fig.update_layout(yaxis=dict(title="тыс. USD", tickformat=",.0f"),
+                      xaxis=dict(showgrid=False, tickangle=-30),
+                      separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True,
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d", "lasso2d"]})
@@ -163,7 +165,8 @@ with tab_pf:
     style_plotly_2d(fig, height=max(240, 95 * len(months)))
     fig.update_layout(barmode="group", yaxis=dict(autorange="reversed", showgrid=False),
                       xaxis=dict(showticklabels=False, showgrid=True),
-                      legend=dict(orientation="h", y=1.15))
+                      legend=dict(orientation="h", y=1.15),
+                      separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
     # авто-описание за период
