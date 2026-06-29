@@ -10,8 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from components.assistant import render_assistant
 from components.kpi import fmt_kusd, fmt_pct
 from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
-                               chart_card_open, cuboid_mesh, gauge, hero,
-                               sparkline, style_plotly_2d, style_plotly_3d)
+                               chart_card_open, col_separators, cuboid_mesh, gauge, hero,
+                               sparkline, style_plotly_2d, style_plotly_3d, wrap_label)
 from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT,
                     TARGET_MONTH, TARGET_YEAR)
 from data.sheets_loader import load_pl_global_raw, pl_series, pl_value
@@ -192,12 +192,14 @@ tab_wf, tab_alt, tab_funnel = st.tabs(
 with tab_wf:
     chart_card_open(f"От выручки до чистой прибыли · {period_label}",
                     "Waterfall, тыс. USD")
+    # Ось подписана «тыс. USD» → на столбцах только числа (без $ и k)
+    wf_bartext = [f"{val:,.0f}".replace(",", " ") for _, val, _ in wf_filtered]
     wf = go.Figure(go.Waterfall(
         orientation="v",
         measure=[m for _, _, m in wf_filtered],
-        x=[lbl for lbl, _, _ in wf_filtered],
+        x=[wrap_label(lbl, 9) for lbl, _, _ in wf_filtered],
         y=[val for _, val, _ in wf_filtered],
-        text=[fmt_kusd(val) for _, val, _ in wf_filtered],
+        text=wf_bartext,
         textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=12),
         connector=dict(line=dict(color=PALETTE["line"], width=1)),
@@ -206,7 +208,11 @@ with tab_wf:
         totals=dict(marker=dict(color="#8B7BF0")),
     ))
     style_plotly_2d(wf, height=440)
-    wf.update_layout(yaxis=dict(title="тыс. USD"), xaxis=dict(showgrid=False))
+    wf.update_layout(yaxis=dict(title="тыс. USD", tickformat=",.0f"),
+                     xaxis=dict(showgrid=False, tickangle=0, automargin=True,
+                                tickfont=dict(size=12)),
+                     shapes=col_separators(len(wf_filtered)),
+                     separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(wf, use_container_width=True,
                     config={"displayModeBar": True, "displaylogo": False, "scrollZoom": True})
     chart_card_close()

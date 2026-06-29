@@ -305,6 +305,30 @@ def style_plotly_3d(fig, height: int = 460):
     return fig
 
 
+def wrap_label(s, width: int = 12) -> str:
+    """Переносит длинную подпись на несколько строк (<br>) по словам — для осей графиков."""
+    words = str(s).split()
+    lines, cur = [], ""
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > width:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    if cur:
+        lines.append(cur)
+    return "<br>".join(lines)
+
+
+def col_separators(n: int, color: str = "rgba(150,160,200,0.16)", y0: float = -0.32):
+    """Бледные пунктирные вертикальные разделители между n столбцами (по границам).
+    Возвращает список shapes для fig.update_layout(shapes=...)."""
+    return [dict(type="line", xref="x", yref="paper", x0=k + 0.5, x1=k + 0.5,
+                 y0=y0, y1=1, layer="below",
+                 line=dict(color=color, width=1, dash="dot"))
+            for k in range(n - 1)]
+
+
 def style_plotly_2d(fig, height: int = 340):
     fig.update_layout(
         height=height,
