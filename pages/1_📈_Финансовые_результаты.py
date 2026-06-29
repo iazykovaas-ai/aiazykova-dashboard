@@ -333,7 +333,8 @@ if opex_view == "Бары":
         customdata=[t[1] for t in order],
         hovertemplate="<b>%{y}</b><br>%{customdata}<br>%{text}<extra></extra>"))
     style_plotly_2d(fig, height=430)
-    fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True),
+    fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True,
+                                 range=[0, max(t[2] for t in order) * 1.18]),
                       yaxis=dict(showgrid=False))
 else:
     fig = go.Figure(go.Treemap(
@@ -374,8 +375,10 @@ if dyn_view == "Площадь":
         line=dict(color=dcolor, width=3, shape="spline"),
         marker=dict(size=9, color=dcolor, line=dict(color="#0A0E20", width=1)),
         fill="tozeroy", fillcolor=f"rgba({_r},{_g},{_b},0.18)",
-        text=[fmt_kusd(v) for v in ys], textposition="top center",
-        textfont=dict(color=PALETTE["ink"], size=11),
+        text=[fmt_kusd(v) for v in ys],
+        textposition=(["top right"] + ["top center"] * (len(ys) - 2) + ["top left"]
+                      if len(ys) >= 2 else "top center"),
+        textfont=dict(color=PALETTE["ink"], size=11), cliponaxis=False,
         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
 else:
     fig = go.Figure(go.Bar(
@@ -385,7 +388,8 @@ else:
         textfont=dict(color=PALETTE["ink"], size=11),
         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
 style_plotly_2d(fig, height=420)
-fig.update_layout(xaxis=dict(showgrid=False))
+fig.update_layout(xaxis=dict(showgrid=False,
+                             range=[-0.6, len(xs) - 0.4] if len(xs) > 1 else None))
 st.plotly_chart(fig, use_container_width=True, config=_MB)
 st.caption("🔍 Увеличили график? Кнопка 🏠 в панели сверху справа (или двойной клик) — вернуть масштаб.")
 chart_card_close()
