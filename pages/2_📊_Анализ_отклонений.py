@@ -114,7 +114,7 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
             for k in range(len(labels) - 1)]
     fig.update_layout(yaxis=dict(title="тыс. USD", tickformat=",.0f"),
                       xaxis=dict(showgrid=False, tickangle=0, automargin=True,
-                                 tickfont=dict(size=10)),
+                                 tickfont=dict(size=12)),
                       shapes=seps,
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True,
