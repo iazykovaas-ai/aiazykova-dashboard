@@ -12,8 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from components.assistant import render_assistant
 from components.kpi import format_money
 from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close, mom_colors,
-                               chart_card_open, cuboid_mesh, hero,
-                               style_plotly_2d, style_plotly_3d)
+                               chart_card_open, col_separators, cuboid_mesh, hero,
+                               row_separators, style_plotly_2d, style_plotly_3d)
 from config import (MON_LINE_BLOCKS, MON_LINES, MON_METRIC_LABELS, MON_MONTH_TOTAL_COLS,
                     MON_SUMMARY_ROWS, MONTH_NAMES_RU)
 from data.sheets_loader import (load_monitoring_raw, mon_line_breakdown,
@@ -153,7 +153,8 @@ with left:
     ))
     style_plotly_2d(fig, height=380)
     fig.update_layout(xaxis=dict(showgrid=False),
-                      yaxis=dict(ticksuffix="%" if metric_fmt == "pct" else ""))
+                      yaxis=dict(ticksuffix="%" if metric_fmt == "pct" else ""),
+                      shapes=col_separators(len(pairs)))
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
     chart_card_close()
 
@@ -175,7 +176,8 @@ with right:
         ))
         style_plotly_2d(fig, height=380)
         fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True),
-                          yaxis=dict(showgrid=False))
+                          yaxis=dict(showgrid=False, tickfont=dict(size=12)),
+                          shapes=row_separators(len(items)))
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
         chart_card_close()
     else:
@@ -228,7 +230,8 @@ cfig.add_trace(go.Scatter(
     hovertemplate="<b>%{x}</b><br>Маржинальность: %{y:.2f}%<extra></extra>",
 ), secondary_y=True)
 style_plotly_2d(cfig, height=440)
-cfig.update_layout(legend=dict(orientation="h", y=1.12), xaxis=dict(showgrid=False))
+cfig.update_layout(legend=dict(orientation="h", y=1.12), xaxis=dict(showgrid=False),
+                   shapes=col_separators(len(cnames)))
 cfig.update_yaxes(title_text="Оборот, $", secondary_y=False)
 cfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False, secondary_y=True)
 st.plotly_chart(cfig, use_container_width=True, config={"displayModeBar": False})

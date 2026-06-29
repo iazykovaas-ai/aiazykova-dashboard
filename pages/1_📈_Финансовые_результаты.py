@@ -11,7 +11,8 @@ from components.assistant import render_assistant
 from components.kpi import fmt_kusd, fmt_pct
 from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
                                chart_card_open, col_separators, cuboid_mesh, gauge, hero,
-                               sparkline, style_plotly_2d, style_plotly_3d, wrap_label)
+                               row_separators, sparkline, style_plotly_2d, style_plotly_3d,
+                               wrap_label)
 from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT,
                     TARGET_MONTH, TARGET_YEAR)
 from data.sheets_loader import load_pl_global_raw, pl_series, pl_value
@@ -336,20 +337,26 @@ opex_groups = [
 ]
 ovals = [(le, lr, abs(fv(k)), c) for k, le, lr, c in opex_groups]
 opex_view = st.radio("Вид структуры OPEX", ["Бары", "Treemap"], horizontal=True, key="opex_view")
-chart_card_open(f"Структура OPEX · {period_label}", "по группам расходов, тыс. USD")
+# В Treemap единицы написаны внутри плиток («тыс. $») → в подписи их не дублируем
+_opex_sub = "по группам расходов, тыс. USD" if opex_view == "Бары" else "по группам расходов"
+chart_card_open(f"Структура OPEX · {period_label}", _opex_sub)
 if opex_view == "Бары":
     order = sorted(ovals, key=lambda t: t[2])
+    # Подпись «тыс. USD» в заголовке → на барах только числа (без $ и k)
+    obar_text = [f"{t[2]:,.0f}".replace(",", " ") for t in order]
     fig = go.Figure(go.Bar(
         x=[t[2] for t in order], y=[t[0] for t in order], orientation="h",
         marker=dict(color=[t[3] for t in order], line=dict(width=0)),
-        text=[fmt_kusd(t[2]) for t in order], textposition="outside",
+        text=obar_text, textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=12),
         customdata=[t[1] for t in order],
-        hovertemplate="<b>%{y}</b><br>%{customdata}<br>%{text}<extra></extra>"))
+        hovertemplate="<b>%{y}</b><br>%{customdata}<br>%{text} тыс. USD<extra></extra>"))
     style_plotly_2d(fig, height=430)
     fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True,
                                  range=[0, max(t[2] for t in order) * 1.18]),
-                      yaxis=dict(showgrid=False))
+                      yaxis=dict(showgrid=False, tickfont=dict(size=12)),
+                      shapes=row_separators(len(order)),
+                      separators=". ")
 else:
     fig = go.Figure(go.Treemap(
         labels=[t[0] for t in ovals], parents=[""] * len(ovals),
@@ -390,11 +397,11 @@ if dyn_view == "Площадь":
         line=dict(color=dcolor, width=3, shape="spline"),
         marker=dict(size=9, color=dcolor, line=dict(color="#0A0E20", width=1)),
         fill="tozeroy", fillcolor=f"rgba({_r},{_g},{_b},0.18)",
-        text=[fmt_kusd(v) for v in ys],
+        text=[f"{v:,.0f}".replace(",", " ") for v in ys],
         textposition=(["top right"] + ["top center"] * (len(ys) - 2) + ["top left"]
                       if len(ys) >= 2 else "top center"),
         textfont=dict(color=PALETTE["ink"], size=11), cliponaxis=False,
-        hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
+        hovertemplate="<b>%{x}</b><br>%{text} тыс. USD<extra></extra>"))
 else:
     # цвет по динамике к пред. месяцу (рост — зелёный, снижение — красный),
     # насыщенность ~ силе изменения в % (как в тепловой карте)
@@ -408,12 +415,12 @@ else:
         c = chg[i]
         if c is None:                       # первый месяц — базовый
             bar_colors.append(dcolor)
-            bar_text.append(fmt_kusd(v))
+            bar_text.append(f"{v:,.0f}".replace(",", " "))
         else:
             alpha = 0.35 + 0.65 * min(abs(c) / maxmag, 1.0)
             rgb = "47,217,166" if c >= 0 else "255,92,122"
             bar_colors.append(f"rgba({rgb},{alpha:.2f})")
-            bar_text.append(f"{fmt_kusd(v)} {'▲' if c >= 0 else '▼'}{abs(c):.0f}%")
+            bar_text.append(f"{v:,.0f}".replace(",", " ") + f" {'▲' if c >= 0 else '▼'}{abs(c):.0f}%")
     fig = go.Figure(go.Bar(
         x=xs, y=ys,
         marker=dict(color=bar_colors, line=dict(color="rgba(255,255,255,0.12)", width=1)),
@@ -422,7 +429,8 @@ else:
         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
 style_plotly_2d(fig, height=420)
 fig.update_layout(xaxis=dict(showgrid=False,
-                             range=[-0.6, len(xs) - 0.4] if len(xs) > 1 else None))
+                             range=[-0.6, len(xs) - 0.4] if len(xs) > 1 else None),
+                  shapes=col_separators(len(xs)), separators=". ")
 st.plotly_chart(fig, use_container_width=True, config=_MB)
 if dyn_view == "Бары":
     st.caption("🟢 рост · 🔴 снижение к пред. месяцу · насыщеннее = сильнее изменение · первый месяц базовый")

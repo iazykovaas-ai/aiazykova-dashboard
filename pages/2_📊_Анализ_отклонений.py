@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from components.assistant import render_assistant
 from components.kpi import fmt_kusd
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
-                               hero, style_plotly_2d)
+                               col_separators, hero, row_separators, style_plotly_2d)
 from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_FULL_METRICS,
                     TARGET_MONTH, TARGET_YEAR)
 from data.sheets_loader import (load_pl_global_raw, pl_value, pl_rows_value,
@@ -127,16 +127,19 @@ def contrib_bars(steps, title, subtitle):
     """Альтернатива мостику: горизонтальные бары вклада каждой статьи (зелёный/красный)."""
     chart_card_open(title, subtitle)
     items = sorted(steps, key=lambda s: s[1])
+    # Подпись «(тыс. USD)» в заголовке → на барах только числа (без $ и k)
+    bar_text = [f"{d:,.0f}".replace(",", " ") for _, d in items]
     fig = go.Figure(go.Bar(
         y=[_wrap(l, 20) for l, _ in items], x=[d for _, d in items], orientation="h",
         marker=dict(color=["#2FD9A6" if d >= 0 else "#FF5C7A" for _, d in items], line=dict(width=0)),
-        text=[fmt_kusd(d) for _, d in items], textposition="outside",
-        textfont=dict(color=PALETTE["ink"], size=11),
-        hovertemplate="<b>%{y}</b><br>%{text}<extra></extra>"))
+        text=bar_text, textposition="outside",
+        textfont=dict(color=PALETTE["ink"], size=12),
+        hovertemplate="<b>%{y}</b><br>%{text} тыс. USD<extra></extra>"))
     style_plotly_2d(fig, height=max(260, 52 * len(items) + 120))
     fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True, zeroline=True,
                                  zerolinecolor=PALETTE["muted"]),
-                      yaxis=dict(showgrid=False, automargin=True),
+                      yaxis=dict(showgrid=False, automargin=True, tickfont=dict(size=12)),
+                      shapes=row_separators(len(items)),
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
     chart_card_close()
@@ -365,7 +368,12 @@ with tab_pf:
               .apply(_dev_styles, subset=["Отклонение"])
               .set_properties(subset=["Факт", "План", "Отклонение", "Выполнение"],
                               **{"text-align": "right"}))
-    st.dataframe(styler, use_container_width=True, hide_index=True)
+    # Кнопка сброса: меняем key таблицы → сбрасывается клиентская сортировка/ширина столбцов
+    st.session_state.setdefault("svod_nonce", 0)
+    if st.button("↺ Сбросить сортировку и ширину", key="svod_reset"):
+        st.session_state.svod_nonce += 1
+    st.dataframe(styler, use_container_width=True, hide_index=True,
+                 key=f"svod_table_{st.session_state.svod_nonce}")
     st.caption("Цвет «Отклонения»: зелёный — вклад в рост чистой прибыли, "
                "красный — снижение; насыщенность отражает размер отклонения. "
                "**n/m** в «Выполнении» — план ≈ 0 или смена знака, % не показателен.")
