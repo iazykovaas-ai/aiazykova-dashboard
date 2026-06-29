@@ -365,10 +365,20 @@ else:
         customdata=[f"{t[1]} · {fmt_kusd(t[2])}" for t in ovals],
         texttemplate="<b>%{label}</b><br>%{value:.0f} тыс. $<br>%{percentRoot}",
         textfont=dict(size=14, color="#0A0E20"),
-        hovertemplate="<b>%{label}</b><br>%{customdata}<extra></extra>"))
+        hovertemplate="<b>%{label}</b><br>%{customdata}<br>%{percentRoot}<extra></extra>"))
     fig.update_layout(height=440, margin=dict(l=6, r=6, t=6, b=6),
-                      paper_bgcolor="rgba(0,0,0,0)", separators=". ")
+                      paper_bgcolor="rgba(0,0,0,0)", separators=". ",
+                      uniformtext=dict(minsize=9, mode="show"),
+                      hoverlabel=dict(bgcolor="#1B2247", font_size=13,
+                                      font_color=PALETTE["ink"], bordercolor=PALETTE["primary"]))
 st.plotly_chart(fig, use_container_width=True, config=_MB)
+if opex_view == "Treemap":
+    # Мелкие плитки нечитаемы → дублируем все группы строкой с числами и %
+    _tot = sum(t[2] for t in ovals) or 1
+    _leg = " · ".join(
+        f"{t[1]} — " + f"{t[2]:,.0f}".replace(",", " ") + f" тыс. ({t[2] / _tot * 100:.0f}%)"
+        for t in sorted(ovals, key=lambda t: -t[2]))
+    st.caption("Все группы OPEX: " + _leg)
 chart_card_close()
 
 # --- Динамика по месяцам (площадь / бары, выбор метрики) ---
