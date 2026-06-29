@@ -88,6 +88,10 @@ _CSS = """
         border: 1px solid rgba(255, 255, 255, 0.07);
         border-radius: 18px;
         padding: 20px 22px;
+        min-height: 150px;            /* все карточки одной высоты */
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
         box-shadow:
             0 8px 26px rgba(0, 0, 0, 0.35),
             inset 0 1px 0 rgba(255, 255, 255, 0.04);
