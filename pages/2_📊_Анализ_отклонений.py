@@ -97,7 +97,7 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
     # Ось подписана «тыс. USD» → на столбцах только числа (без $ и k)
     bar_text = [f"{v:,.0f}".replace(",", " ") for v in values]
     fig = go.Figure(go.Waterfall(
-        orientation="v", measure=measures, x=[_wrap(l) for l in labels], y=values,
+        orientation="v", measure=measures, x=[_wrap(l, 9) for l in labels], y=values,
         text=bar_text,
         textposition="outside", textfont=dict(color=PALETTE["ink"], size=11),
         connector=dict(line=dict(color=PALETTE["line"], width=1)),
@@ -113,7 +113,8 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
                  line=dict(color="rgba(150,160,200,0.16)", width=1, dash="dot"))
             for k in range(len(labels) - 1)]
     fig.update_layout(yaxis=dict(title="тыс. USD", tickformat=",.0f"),
-                      xaxis=dict(showgrid=False, tickangle=0, automargin=True),
+                      xaxis=dict(showgrid=False, tickangle=0, automargin=True,
+                                 tickfont=dict(size=10)),
                       shapes=seps,
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True,
