@@ -245,7 +245,7 @@ with tab_pf:
 
     # Факторный мостик «Бюджет → Факт»
     st.markdown("##### 🔻 Разбор отклонения от плана")
-    dim = inline_radio("Разрез", ["Статьи P&L", "Сегменты (маржа)"], "ao_bf_dim")
+    dim = inline_radio("Разрез", ["Сегменты (маржа)", "Статьи P&L"], "ao_bf_dim")
     bf_kind = inline_radio("Вид", ["Мостик", "Вклад (бары)"], "ao_bf_kind")
     if dim == "Статьи P&L":
         net_budget = pl_sum("net_profit", from_m, to_m, "budget")
@@ -403,7 +403,7 @@ with tab_pf:
 
 # ========================= ПЕРИОД К ПЕРИОДУ =========================
 with tab_pp:
-    dim2 = inline_radio("Разрез", ["Статьи P&L", "Сегменты (маржа)"], "ao_pp_dim")
+    dim2 = inline_radio("Разрез", ["Сегменты (маржа)", "Статьи P&L"], "ao_pp_dim")
     pp_kind = inline_radio("Вид", ["Мостик", "Вклад (бары)"], "ao_pp_kind")
 
     if dim2 == "Статьи P&L":
