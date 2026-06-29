@@ -395,6 +395,24 @@ def gauge(value: float, title: str = "", vmax: float = 150, target: float = 100,
     return fig
 
 
+def mom_colors(values, base_color="#8B7BF0", up="47,217,166", down="255,92,122"):
+    """Цвета баров по динамике к предыдущему значению: рост — зелёный, снижение — красный;
+    насыщенность пропорциональна силе % изменения. Возвращает (colors, changes)."""
+    chg = [None]
+    for i in range(1, len(values)):
+        p = values[i - 1]
+        chg.append((values[i] - p) / abs(p) * 100 if p else 0.0)
+    maxmag = max((abs(c) for c in chg if c is not None), default=1) or 1
+    colors = []
+    for c in chg:
+        if c is None:
+            colors.append(base_color)
+        else:
+            a = 0.35 + 0.65 * min(abs(c) / maxmag, 1.0)
+            colors.append(f"rgba({up if c >= 0 else down},{a:.2f})")
+    return colors, chg
+
+
 def bar3d(labels, values, formatter=str):
     """3D bar chart. labels - X categories, values - Z heights."""
     fig = go.Figure()

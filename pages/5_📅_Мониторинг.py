@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from components.assistant import render_assistant
 from components.kpi import format_money
-from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
+from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close, mom_colors,
                                chart_card_open, cuboid_mesh, hero,
                                style_plotly_2d, style_plotly_3d)
 from config import (MON_LINE_BLOCKS, MON_LINES, MON_METRIC_LABELS, MON_MONTH_TOTAL_COLS,
@@ -143,8 +143,8 @@ with left:
     my = [v * 100 for v in mvals] if metric_fmt == "pct" else mvals
     fig = go.Figure(go.Bar(
         x=[MONTH_NAMES_RU[m - 1] for m, _ in pairs], y=my,
-        marker=dict(color=[CHART_COLORS[i % len(CHART_COLORS)] for i in range(len(pairs))],
-                    line=dict(width=0)),
+        marker=dict(color=mom_colors(mvals, "#8B7BF0")[0],
+                    line=dict(color="rgba(255,255,255,0.12)", width=1)),
         text=[fmt_val(v, metric_fmt) for v in mvals],
         textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=12),

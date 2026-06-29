@@ -95,7 +95,12 @@ chart_card_close()
 # ===== % выполнения плана по месяцам =====
 chart_card_open(f"Выполнение плана по месяцам · {labels[m_sel]}", "Факт / План, %")
 done_m = [fact[i] / plan[i] * 100 if plan[i] else 0 for i in range(len(months))]
-colors = ["#2FD9A6" if v >= 100 else "#FF5C7A" if v < 90 else "#F5B544" for v in done_m]
+# оттенки: выше 100% — зелёные, ниже — красные; насыщенность ~ отклонению от плана
+_dev = [v - 100 for v in done_m]
+_maxd = max((abs(d) for d in _dev), default=1) or 1
+colors = [(f"rgba(47,217,166,{0.4 + 0.6 * min(abs(d) / _maxd, 1):.2f})" if v >= 100
+           else f"rgba(255,92,122,{0.4 + 0.6 * min(abs(d) / _maxd, 1):.2f})")
+          for v, d in zip(done_m, _dev)]
 fig = go.Figure(go.Bar(
     x=xnames, y=done_m, marker=dict(color=colors),
     text=[f"{v:.0f}%" if v else "—" for v in done_m], textposition="outside",
