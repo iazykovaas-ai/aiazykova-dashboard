@@ -64,12 +64,39 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
     ))
     style_plotly_2d(fig, height=470)
     fig.update_layout(yaxis=dict(title="тыс. USD", tickformat=",.0f"),
-                      xaxis=dict(showgrid=False, tickangle=-30),
+                      xaxis=dict(showgrid=False, tickangle=-30, automargin=True),
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True,
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d", "lasso2d"]})
     chart_card_close()
+
+
+def contrib_bars(steps, title, subtitle):
+    """Альтернатива мостику: горизонтальные бары вклада каждой статьи (зелёный/красный)."""
+    chart_card_open(title, subtitle)
+    items = sorted(steps, key=lambda s: s[1])
+    fig = go.Figure(go.Bar(
+        y=[l for l, _ in items], x=[d for _, d in items], orientation="h",
+        marker=dict(color=["#2FD9A6" if d >= 0 else "#FF5C7A" for _, d in items], line=dict(width=0)),
+        text=[fmt_kusd(d) for _, d in items], textposition="outside",
+        textfont=dict(color=PALETTE["ink"], size=11),
+        hovertemplate="<b>%{y}</b><br>%{text}<extra></extra>"))
+    style_plotly_2d(fig, height=max(260, 52 * len(items) + 120))
+    fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True, zeroline=True,
+                                 zerolinecolor=PALETTE["muted"]),
+                      yaxis=dict(showgrid=False, automargin=True),
+                      separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    chart_card_close()
+
+
+def show_bridge(kind, start_label, start_val, steps, end_label, end_val, title, subtitle):
+    if kind == "Вклад (бары)":
+        contrib_bars(steps, title, subtitle)
+        st.caption(f"{start_label}: {fmt_kusd(start_val)}  →  {end_label}: {fmt_kusd(end_val)}")
+    else:
+        waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, subtitle)
 
 
 def insight_box(total_dev, steps):
@@ -193,6 +220,7 @@ with tab_pf:
     # Факторный мостик «Бюджет → Факт»
     st.markdown("##### 🔻 Разбор отклонения от плана")
     dim = st.radio("Разрез", ["Статьи P&L", "Сегменты (маржа)"], horizontal=True, key="ao_bf_dim")
+    bf_kind = st.radio("Вид", ["Мостик", "Вклад (бары)"], horizontal=True, key="ao_bf_kind")
     if dim == "Статьи P&L":
         net_budget = pl_sum("net_profit", from_m, to_m, "budget")
         net_fact = pl_sum("net_profit", from_m, to_m, "fact")
@@ -207,7 +235,7 @@ with tab_pf:
         residual = (net_fact - net_budget) - covered
         if abs(residual) > 1:
             steps.append(("Прочее (без бюджета)", residual))
-        waterfall_bridge("Бюджет ЧП", net_budget, steps, "Факт ЧП", net_fact,
+        show_bridge(bf_kind, "Бюджет ЧП", net_budget, steps, "Факт ЧП", net_fact,
                          f"Бюджет → Факт чистой прибыли · {period_label}",
                          "Вклад статей в отклонение (тыс. USD)")
         insight_box(net_fact - net_budget, steps)
@@ -226,7 +254,7 @@ with tab_pf:
                 steps.append(("Прочее/неучтённое", residual))
             plabel = (MONTH_NAMES_RU[fmonths[0] - 1] if len(fmonths) == 1
                       else f"{MONTH_NAMES_RU[fmonths[0] - 1]} — {MONTH_NAMES_RU[fmonths[-1] - 1]}")
-            waterfall_bridge("Бюджет маржи", tot_b, steps, "Факт маржи", tot_f,
+            show_bridge(bf_kind, "Бюджет маржи", tot_b, steps, "Факт маржи", tot_f,
                              f"Бюджет → Факт маржинальной прибыли по сегментам · {plabel}",
                              "Вклад каждого сегмента в отклонение от плана (тыс. USD)")
             insight_box(tot_f - tot_b, steps)
@@ -248,6 +276,7 @@ with tab_pf:
 # ========================= ПЕРИОД К ПЕРИОДУ =========================
 with tab_pp:
     dim2 = st.radio("Разрез", ["Статьи P&L", "Сегменты (маржа)"], horizontal=True, key="ao_pp_dim")
+    pp_kind = st.radio("Вид", ["Мостик", "Вклад (бары)"], horizontal=True, key="ao_pp_kind")
 
     if dim2 == "Статьи P&L":
         c1, c2 = st.columns(2)
@@ -266,7 +295,7 @@ with tab_pp:
             delta = pl_sum(key, cur_m, cur_m, "fact") - pl_sum(key, prev_m, prev_m, "fact")
             if abs(delta) > 1:
                 steps.append((label, delta))
-        waterfall_bridge(f"ЧП {MONTH_NAMES_RU[prev_m - 1]}", net_prev, steps,
+        show_bridge(pp_kind, f"ЧП {MONTH_NAMES_RU[prev_m - 1]}", net_prev, steps,
                          f"ЧП {MONTH_NAMES_RU[cur_m - 1]}", net_cur,
                          f"Чистая прибыль: {MONTH_NAMES_RU[prev_m - 1]} → {MONTH_NAMES_RU[cur_m - 1]} {TARGET_YEAR}",
                          "Вклад статей в изменение (тыс. USD)")
@@ -290,7 +319,7 @@ with tab_pp:
             residual = (tot_cur - tot_prev) - sum(d for _, d in steps)
             if abs(residual) > 1:
                 steps.append(("Прочее/неучтённое", residual))
-            waterfall_bridge(f"Маржа {MONTH_NAMES_RU[sp - 1]}", tot_prev, steps,
+            show_bridge(pp_kind, f"Маржа {MONTH_NAMES_RU[sp - 1]}", tot_prev, steps,
                              f"Маржа {MONTH_NAMES_RU[sc - 1]}", tot_cur,
                              f"Маржинальная прибыль по сегментам: {MONTH_NAMES_RU[sp - 1]} → {MONTH_NAMES_RU[sc - 1]} {TARGET_YEAR}",
                              "Вклад каждого сегмента в изменение (тыс. USD)")
