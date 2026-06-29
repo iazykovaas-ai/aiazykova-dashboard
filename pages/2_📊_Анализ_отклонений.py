@@ -33,6 +33,15 @@ def _md(s: str) -> str:
     return s.replace("$", "\\$")
 
 
+def inline_radio(label, options, key):
+    """Радио с подписью в той же строке (компактно, без переноса)."""
+    c1, c2 = st.columns([1, 6], vertical_alignment="center")
+    c1.markdown(f"<div style='font-weight:600;color:#C7CCEC;'>{label}</div>",
+                unsafe_allow_html=True)
+    return c2.radio(label, options, horizontal=True,
+                    label_visibility="collapsed", key=key)
+
+
 # Метрики с заполненным бюджетом (выручка/прямые расходы — пусто, не показываем)
 PF_METRICS = [("turnover", "Оборот"), ("gross_profit", "Маржинальная прибыль"),
               ("opex", "OPEX"), ("net_profit", "Чистая прибыль")]
@@ -236,8 +245,8 @@ with tab_pf:
 
     # Факторный мостик «Бюджет → Факт»
     st.markdown("##### 🔻 Разбор отклонения от плана")
-    dim = st.radio("Разрез", ["Статьи P&L", "Сегменты (маржа)"], horizontal=True, key="ao_bf_dim")
-    bf_kind = st.radio("Вид", ["Мостик", "Вклад (бары)"], horizontal=True, key="ao_bf_kind")
+    dim = inline_radio("Разрез", ["Статьи P&L", "Сегменты (маржа)"], "ao_bf_dim")
+    bf_kind = inline_radio("Вид", ["Мостик", "Вклад (бары)"], "ao_bf_kind")
     if dim == "Статьи P&L":
         net_budget = pl_sum("net_profit", from_m, to_m, "budget")
         net_fact = pl_sum("net_profit", from_m, to_m, "fact")
@@ -375,8 +384,8 @@ with tab_pf:
 
 # ========================= ПЕРИОД К ПЕРИОДУ =========================
 with tab_pp:
-    dim2 = st.radio("Разрез", ["Статьи P&L", "Сегменты (маржа)"], horizontal=True, key="ao_pp_dim")
-    pp_kind = st.radio("Вид", ["Мостик", "Вклад (бары)"], horizontal=True, key="ao_pp_kind")
+    dim2 = inline_radio("Разрез", ["Статьи P&L", "Сегменты (маржа)"], "ao_pp_dim")
+    pp_kind = inline_radio("Вид", ["Мостик", "Вклад (бары)"], "ao_pp_kind")
 
     if dim2 == "Статьи P&L":
         c1, c2 = st.columns(2)
