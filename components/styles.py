@@ -322,9 +322,18 @@ def wrap_label(s, width: int = 12) -> str:
 
 def col_separators(n: int, color: str = "rgba(150,160,200,0.16)", y0: float = -0.32):
     """Бледные пунктирные вертикальные разделители между n столбцами (по границам).
-    Возвращает список shapes для fig.update_layout(shapes=...)."""
+    Для вертикальных баров. Возвращает shapes для fig.update_layout(shapes=...)."""
     return [dict(type="line", xref="x", yref="paper", x0=k + 0.5, x1=k + 0.5,
                  y0=y0, y1=1, layer="below",
+                 line=dict(color=color, width=1, dash="dot"))
+            for k in range(n - 1)]
+
+
+def row_separators(n: int, color: str = "rgba(150,160,200,0.16)", x0: float = -0.30):
+    """Бледные пунктирные горизонтальные разделители между n строками (по границам).
+    Для горизонтальных баров; протянуты влево в зону подписей."""
+    return [dict(type="line", yref="y", xref="paper", y0=k + 0.5, y1=k + 0.5,
+                 x0=x0, x1=1, layer="below",
                  line=dict(color=color, width=1, dash="dot"))
             for k in range(n - 1)]
 
