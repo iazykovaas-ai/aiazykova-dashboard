@@ -381,18 +381,27 @@ if dyn_view == "Площадь":
         textfont=dict(color=PALETTE["ink"], size=11), cliponaxis=False,
         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
 else:
-    # цвет бара по динамике к предыдущему месяцу: рост — зелёный, снижение — красный
+    # цвет по динамике к пред. месяцу (рост — зелёный, снижение — красный),
+    # насыщенность ~ силе изменения в % (как в тепловой карте)
+    chg = [None]
+    for i in range(1, len(ys)):
+        p = ys[i - 1]
+        chg.append((ys[i] - p) / abs(p) * 100 if p else 0.0)
+    maxmag = max((abs(c) for c in chg if c is not None), default=1) or 1
     bar_colors, bar_text = [], []
     for i, v in enumerate(ys):
-        if i == 0:
+        c = chg[i]
+        if c is None:                       # первый месяц — базовый
             bar_colors.append(dcolor)
             bar_text.append(fmt_kusd(v))
         else:
-            up = v >= ys[i - 1]
-            bar_colors.append("#2FD9A6" if up else "#FF5C7A")
-            bar_text.append(fmt_kusd(v) + (" ▲" if up else " ▼"))
+            alpha = 0.35 + 0.65 * min(abs(c) / maxmag, 1.0)
+            rgb = "47,217,166" if c >= 0 else "255,92,122"
+            bar_colors.append(f"rgba({rgb},{alpha:.2f})")
+            bar_text.append(f"{fmt_kusd(v)} {'▲' if c >= 0 else '▼'}{abs(c):.0f}%")
     fig = go.Figure(go.Bar(
-        x=xs, y=ys, marker=dict(color=bar_colors, line=dict(width=0)),
+        x=xs, y=ys,
+        marker=dict(color=bar_colors, line=dict(color="rgba(255,255,255,0.12)", width=1)),
         text=bar_text, textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=11),
         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
@@ -401,7 +410,7 @@ fig.update_layout(xaxis=dict(showgrid=False,
                              range=[-0.6, len(xs) - 0.4] if len(xs) > 1 else None))
 st.plotly_chart(fig, use_container_width=True, config=_MB)
 if dyn_view == "Бары":
-    st.caption("🟢 рост к предыдущему месяцу · 🔴 снижение · первый месяц — базовый")
+    st.caption("🟢 рост · 🔴 снижение к пред. месяцу · насыщеннее = сильнее изменение · первый месяц базовый")
 st.caption("🔍 Увеличили график? Кнопка 🏠 в панели сверху справа (или двойной клик) — вернуть масштаб.")
 chart_card_close()
 
