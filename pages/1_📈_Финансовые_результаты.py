@@ -381,16 +381,27 @@ if dyn_view == "Площадь":
         textfont=dict(color=PALETTE["ink"], size=11), cliponaxis=False,
         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
 else:
+    # цвет бара по динамике к предыдущему месяцу: рост — зелёный, снижение — красный
+    bar_colors, bar_text = [], []
+    for i, v in enumerate(ys):
+        if i == 0:
+            bar_colors.append(dcolor)
+            bar_text.append(fmt_kusd(v))
+        else:
+            up = v >= ys[i - 1]
+            bar_colors.append("#2FD9A6" if up else "#FF5C7A")
+            bar_text.append(fmt_kusd(v) + (" ▲" if up else " ▼"))
     fig = go.Figure(go.Bar(
-        x=xs, y=ys,
-        marker=dict(color=[dcolor if v >= 0 else "#FF5C7A" for v in ys], line=dict(width=0)),
-        text=[fmt_kusd(v) for v in ys], textposition="outside",
+        x=xs, y=ys, marker=dict(color=bar_colors, line=dict(width=0)),
+        text=bar_text, textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=11),
         hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>"))
 style_plotly_2d(fig, height=420)
 fig.update_layout(xaxis=dict(showgrid=False,
                              range=[-0.6, len(xs) - 0.4] if len(xs) > 1 else None))
 st.plotly_chart(fig, use_container_width=True, config=_MB)
+if dyn_view == "Бары":
+    st.caption("🟢 рост к предыдущему месяцу · 🔴 снижение · первый месяц — базовый")
 st.caption("🔍 Увеличили график? Кнопка 🏠 в панели сверху справа (или двойной клик) — вернуть масштаб.")
 chart_card_close()
 
