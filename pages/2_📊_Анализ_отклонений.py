@@ -90,7 +90,8 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
     ))
     style_plotly_2d(fig, height=470)
     fig.update_layout(yaxis=dict(title="тыс. USD", tickformat=",.0f"),
-                      xaxis=dict(showgrid=False, tickangle=-30, automargin=True),
+                      xaxis=dict(showgrid=True, gridcolor="rgba(150,160,200,0.14)",
+                                 griddash="dot", tickangle=-30, automargin=True),
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True,
                     config={"displayModeBar": True, "displaylogo": False,
