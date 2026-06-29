@@ -27,10 +27,11 @@ hero(f"📈 Финансовые результаты · {TARGET_YEAR}",
 st.markdown("##### 📅 Период")
 col_from, col_to = st.columns(2)
 with col_from:
+    st.session_state.setdefault("period_from", 1)   # при новой загрузке — Январь
     from_m = st.selectbox(
         "С месяца", list(range(1, 13)),
         format_func=lambda x: MONTH_NAMES_RU[x - 1],
-        index=0, key="period_from",
+        key="period_from",
     )
 with col_to:
     to_m = st.selectbox(

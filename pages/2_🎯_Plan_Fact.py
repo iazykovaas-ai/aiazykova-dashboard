@@ -41,8 +41,9 @@ def pl_sum(metric, m_from, m_to, source):
 st.markdown("##### 📅 Период")
 c_from, c_to = st.columns(2)
 with c_from:
+    st.session_state.setdefault("pf_from", 1)   # при новой загрузке — Январь
     from_m = st.selectbox("С месяца", list(range(1, 13)),
-                          format_func=lambda x: MONTH_NAMES_RU[x - 1], index=0, key="pf_from")
+                          format_func=lambda x: MONTH_NAMES_RU[x - 1], key="pf_from")
 with c_to:
     to_m = st.selectbox("По месяц", list(range(1, 13)),
                         format_func=lambda x: MONTH_NAMES_RU[x - 1],
