@@ -359,12 +359,13 @@ chart_card_close()
 # --- Динамика по месяцам (площадь / бары, выбор метрики) ---
 DYN_METRICS = [("revenue", "Выручка", "#8B7BF0"),
                ("gross_profit", "Валовая прибыль", "#36C5F0"),
+               ("revaluation", "Переоценка", "#3FE0C5"),
                ("operating_profit", "Операционная прибыль", "#2FD9A6"),
                ("net_profit", "Чистая прибыль", "#F5B544")]
 dmap = {k: (l, c) for k, l, c in DYN_METRICS}
 dc1, dc2 = st.columns([2, 1])
 with dc1:
-    dsel = st.selectbox("Метрика динамики", [k for k, _, _ in DYN_METRICS],
+    dsel = st.selectbox("Метрика в динамике", [k for k, _, _ in DYN_METRICS],
                         format_func=lambda k: dmap[k][0], key="pl_dyn_metric")
 with dc2:
     dyn_view = st.radio("Тип", ["Площадь", "Бары"], horizontal=True, key="pl_dyn_view")

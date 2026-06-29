@@ -104,6 +104,7 @@ _CSS = """
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
+        min-height: 2.5em;   /* резерв под 2 строки — карточки одной высоты */
         /* Перенос на 2 строки вместо «…» */
         white-space: normal !important;
         overflow: visible !important;
