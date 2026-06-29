@@ -170,62 +170,120 @@ with tab_pf:
 
     st.markdown("")
 
-    # Помесячно план/факт + % выполнения
-    mi = st.selectbox("Метрика для графика", list(range(len(PL_FULL_METRICS))),
-                      format_func=lambda i: PL_FULL_METRICS[i][0].strip(), key="ao_metric")
-    m_label, m_rows, m_fmt = PL_FULL_METRICS[mi]
-    m_label = m_label.strip()
+    # Селектор метрики: первым пунктом — «Общий свод» (все метрики таблицей)
     months = list(range(from_m, to_m + 1))
-    plan = [pl_rows_value(rows, m_rows, m, "budget") for m in months]
-    fact = [pl_rows_value(rows, m_rows, m, "fact") for m in months]
+    SVOD = "📋 Общий свод (все метрики)"
+    sel_opts = [SVOD] + [PL_FULL_METRICS[i][0].strip() for i in range(len(PL_FULL_METRICS))]
+    sel = st.selectbox("Метрика для графика", list(range(len(sel_opts))),
+                       format_func=lambda i: sel_opts[i], key="ao_metric")
 
-    def _fmt(v):
-        return f"{v * 100:.2f}%" if m_fmt == "pct" else fmt_kusd(v)
+    if sel == 0:
+        # ----- ОБЩИЙ СВОД: все метрики за период (факт/план/откл/выполнение) -----
+        table, dev_info = [], []   # dev_info: (откл. в исходных ед., is_pct)
+        for label, m_rows, m_fmt in PL_FULL_METRICS:
+            if m_fmt == "pct":
+                fvals = [pl_rows_value(rows, m_rows, m, "fact") for m in months]
+                pvals = [pl_rows_value(rows, m_rows, m, "budget") for m in months]
+                f = sum(fvals) / len(fvals) if fvals else 0
+                p = sum(pvals) / len(pvals) if pvals else 0
+                dev = f - p
+                fact_s, plan_s = f"{f * 100:.2f}%", (f"{p * 100:.2f}%" if p else "—")
+                dev_s = (f"{dev * 100:+.2f} п.п." if p else "—")
+                done_s = "—"
+            else:
+                f = sum(pl_rows_value(rows, m_rows, m, "fact") for m in months)
+                p = sum(pl_rows_value(rows, m_rows, m, "budget") for m in months)
+                dev = f - p
+                fact_s, plan_s = fmt_kusd(f), (fmt_kusd(p) if p else "—")
+                dev_s = fmt_kusd(dev)
+                done_s = (f"{f / p * 100:.1f}%" if p else "—")
+            table.append({"Метрика": label.strip(), "Факт": fact_s, "План": plan_s,
+                          "Отклонение": dev_s, "Выполнение": done_s})
+            dev_info.append((dev, m_fmt == "pct"))
 
-    chart_card_open(f"Факт vs План · {m_label} · {period_label}",
-                    "горизонтально · по месяцам")
-    ynames = [MONTH_NAMES_RU[m - 1] for m in months]
-    pv = [v * 100 if m_fmt == "pct" else v for v in plan]
-    fv2 = [v * 100 if m_fmt == "pct" else v for v in fact]
-    fig = go.Figure()
-    fig.add_trace(go.Bar(y=ynames, x=pv, name="План", orientation="h",
-                         marker=dict(color="#8B7BF0"),
-                         text=[_fmt(v) for v in plan], textposition="outside",
-                         textfont=dict(color=PALETTE["ink"], size=11),
-                         hovertemplate="<b>%{y}</b><br>План: %{text}<extra></extra>"))
-    fig.add_trace(go.Bar(y=ynames, x=fv2, name="Факт", orientation="h",
-                         marker=dict(color=["#2FD9A6" if f >= p else "#FF5C7A"
-                                            for f, p in zip(fact, plan)]),
-                         text=[_fmt(v) for v in fact], textposition="outside",
-                         textfont=dict(color=PALETTE["ink"], size=11),
-                         hovertemplate="<b>%{y}</b><br>Факт: %{text}<extra></extra>"))
-    style_plotly_2d(fig, height=max(240, 95 * len(months)))
-    fig.update_layout(barmode="group", yaxis=dict(autorange="reversed", showgrid=False),
-                      xaxis=dict(showticklabels=False, showgrid=True),
-                      legend=dict(orientation="h", y=1.15),
-                      separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        # Оттенки отклонения по смыслу: рост ЧП (откл.≥0) — зелёный, иначе красный;
+        # яркость — по величине, нормировка отдельно для денег и для процентов.
+        mmax = max((abs(d) for d, ip in dev_info if not ip), default=1) or 1
+        pmax = max((abs(d) for d, ip in dev_info if ip), default=1) or 1
 
-    # авто-описание за период
-    if m_fmt == "pct":
-        fp = sum(fact) / len(fact) if fact else 0
-        pp = sum(plan) / len(plan) if plan else 0
-        if pp:
-            dev = (fp - pp) * 100
-            st.info(f"📌 **{m_label}** за {period_label}: факт {fp * 100:.2f}% против плана "
-                    f"{pp * 100:.2f}% — {'выше' if dev >= 0 else 'ниже'} на {abs(dev):.1f} п.п.")
-        else:
-            st.info(f"📌 **{m_label}**: факт {fp * 100:.2f}% (плана нет).")
+        def _dev_styles(col):
+            out = []
+            for i in range(len(col)):
+                d, ip = dev_info[i]
+                scale = pmax if ip else mmax
+                inten = min(1.0, abs(d) / scale) if scale else 0
+                a = 0.12 + 0.5 * inten
+                if d >= 0:
+                    out.append(f"background-color: rgba(47,217,166,{a:.2f}); color:#EAFBF4")
+                else:
+                    out.append(f"background-color: rgba(255,92,122,{a:.2f}); color:#FFECF0")
+            return out
+
+        chart_card_open(f"Общий свод · все метрики · {period_label}",
+                        "факт vs план по всем статьям P&L")
+        df_svod = pd.DataFrame(table)
+        styler = (df_svod.style
+                  .apply(_dev_styles, subset=["Отклонение"])
+                  .set_properties(subset=["Факт", "План", "Отклонение", "Выполнение"],
+                                  **{"text-align": "right"}))
+        st.dataframe(styler, use_container_width=True, hide_index=True)
+        st.caption("Цвет «Отклонения»: зелёный — вклад в рост чистой прибыли, "
+                   "красный — снижение; насыщенность отражает размер отклонения.")
+        chart_card_close()
     else:
-        ftot, ptot = sum(fact), sum(plan)
-        if ptot:
-            dev = ftot - ptot
-            st.info(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)}, план "
-                    f"{fmt_kusd(ptot)}, отклонение {'+' if dev >= 0 else '−'}{fmt_kusd(abs(dev))} "
-                    f"({ftot / ptot * 100 - 100:+.0f}% к плану).")
+        # ----- Одна метрика: помесячно план/факт горизонтальными барами -----
+        m_label, m_rows, m_fmt = PL_FULL_METRICS[sel - 1]
+        m_label = m_label.strip()
+        plan = [pl_rows_value(rows, m_rows, m, "budget") for m in months]
+        fact = [pl_rows_value(rows, m_rows, m, "fact") for m in months]
+
+        def _fmt(v):
+            return f"{v * 100:.2f}%" if m_fmt == "pct" else fmt_kusd(v)
+
+        chart_card_open(f"Факт vs План · {m_label} · {period_label}",
+                        "горизонтально · по месяцам")
+        ynames = [MONTH_NAMES_RU[m - 1] for m in months]
+        pv = [v * 100 if m_fmt == "pct" else v for v in plan]
+        fv2 = [v * 100 if m_fmt == "pct" else v for v in fact]
+        fig = go.Figure()
+        fig.add_trace(go.Bar(y=ynames, x=pv, name="План", orientation="h",
+                             marker=dict(color="#8B7BF0"),
+                             text=[_fmt(v) for v in plan], textposition="outside",
+                             textfont=dict(color=PALETTE["ink"], size=11),
+                             hovertemplate="<b>%{y}</b><br>План: %{text}<extra></extra>"))
+        fig.add_trace(go.Bar(y=ynames, x=fv2, name="Факт", orientation="h",
+                             marker=dict(color=["#2FD9A6" if f >= p else "#FF5C7A"
+                                                for f, p in zip(fact, plan)]),
+                             text=[_fmt(v) for v in fact], textposition="outside",
+                             textfont=dict(color=PALETTE["ink"], size=11),
+                             hovertemplate="<b>%{y}</b><br>Факт: %{text}<extra></extra>"))
+        style_plotly_2d(fig, height=max(240, 95 * len(months)))
+        fig.update_layout(barmode="group", yaxis=dict(autorange="reversed", showgrid=False),
+                          xaxis=dict(showticklabels=False, showgrid=True),
+                          legend=dict(orientation="h", y=1.15),
+                          separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+        # авто-описание за период
+        if m_fmt == "pct":
+            fp = sum(fact) / len(fact) if fact else 0
+            pp = sum(plan) / len(plan) if plan else 0
+            if pp:
+                dev = (fp - pp) * 100
+                st.info(f"📌 **{m_label}** за {period_label}: факт {fp * 100:.2f}% против плана "
+                        f"{pp * 100:.2f}% — {'выше' if dev >= 0 else 'ниже'} на {abs(dev):.1f} п.п.")
+            else:
+                st.info(f"📌 **{m_label}**: факт {fp * 100:.2f}% (плана нет).")
         else:
-            st.info(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)} (плана нет).")
-    chart_card_close()
+            ftot, ptot = sum(fact), sum(plan)
+            if ptot:
+                dev = ftot - ptot
+                st.info(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)}, план "
+                        f"{fmt_kusd(ptot)}, отклонение {'+' if dev >= 0 else '−'}{fmt_kusd(abs(dev))} "
+                        f"({ftot / ptot * 100 - 100:+.0f}% к плану).")
+            else:
+                st.info(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)} (плана нет).")
+        chart_card_close()
 
     # Факторный мостик «Бюджет → Факт»
     st.markdown("##### 🔻 Разбор отклонения от плана")
