@@ -33,6 +33,21 @@ def _md(s: str) -> str:
     return s.replace("$", "\\$")
 
 
+def _wrap(s: str, width: int = 14) -> str:
+    """Переносит длинную подпись на несколько строк (<br>) по словам — для осей графиков."""
+    words = str(s).split()
+    lines, cur = [], ""
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > width:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = f"{cur} {w}".strip()
+    if cur:
+        lines.append(cur)
+    return "<br>".join(lines)
+
+
 def inline_radio(label, options, key):
     """Радио с подписью в той же строке (компактно, без переноса)."""
     c1, c2 = st.columns([1, 6], vertical_alignment="center")
@@ -79,9 +94,11 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
     labels = [start_label] + [s[0] for s in steps] + [end_label]
     measures = ["absolute"] + ["relative"] * len(steps) + ["total"]
     values = [start_val] + [s[1] for s in steps] + [end_val]
+    # Ось подписана «тыс. USD» → на столбцах только числа (без $ и k)
+    bar_text = [f"{v:,.0f}".replace(",", " ") for v in values]
     fig = go.Figure(go.Waterfall(
-        orientation="v", measure=measures, x=labels, y=values,
-        text=[fmt_kusd(v) for v in values],
+        orientation="v", measure=measures, x=[_wrap(l) for l in labels], y=values,
+        text=bar_text,
         textposition="outside", textfont=dict(color=PALETTE["ink"], size=11),
         connector=dict(line=dict(color=PALETTE["line"], width=1)),
         increasing=dict(marker=dict(color="#2FD9A6")),
@@ -96,7 +113,7 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
                  line=dict(color="rgba(150,160,200,0.16)", width=1, dash="dot"))
             for k in range(len(labels) - 1)]
     fig.update_layout(yaxis=dict(title="тыс. USD", tickformat=",.0f"),
-                      xaxis=dict(showgrid=False, tickangle=-30, automargin=True),
+                      xaxis=dict(showgrid=False, tickangle=0, automargin=True),
                       shapes=seps,
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
     st.plotly_chart(fig, use_container_width=True,
@@ -110,7 +127,7 @@ def contrib_bars(steps, title, subtitle):
     chart_card_open(title, subtitle)
     items = sorted(steps, key=lambda s: s[1])
     fig = go.Figure(go.Bar(
-        y=[l for l, _ in items], x=[d for _, d in items], orientation="h",
+        y=[_wrap(l, 20) for l, _ in items], x=[d for _, d in items], orientation="h",
         marker=dict(color=["#2FD9A6" if d >= 0 else "#FF5C7A" for _, d in items], line=dict(width=0)),
         text=[fmt_kusd(d) for _, d in items], textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=11),
