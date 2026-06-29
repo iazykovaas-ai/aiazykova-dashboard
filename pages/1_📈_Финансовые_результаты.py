@@ -107,13 +107,18 @@ _last_name = MONTH_NAMES_RU[_last_m - 1].lower() if _last_m else ""
 kpi_defs = [
     ("Выручка (Revenue)",     revenue,      revenue_prev, "revenue",          "#36C5F0", "выручки"),
     ("Валовая прибыль (GP)",  gross_profit, gp_prev,      "gross_profit",     "#2FD9A6", "маржи"),
-    ("Переоценка",            fv("revaluation"), 0,       "revaluation",      "#3FE0C5", "переоценки"),
+    ("Переоценка",            fv("revaluation"), fv("revaluation", year=2025), "revaluation", "#3FE0C5", "переоценки"),
     ("Операционная прибыль",  op_profit,    op_prev,      "operating_profit", "#8B7BF0", "опер. прибыли"),
     ("Чистая прибыль (Net)",  net_profit,   np_prev,      "net_profit",       "#F5B544", "чистой прибыли"),
 ]
 for col, (label, val, prev, key, color, short) in zip(st.columns(len(kpi_defs)), kpi_defs):
     with col:
-        st.metric(label, fmt_kusd(val), y2y(val, prev))
+        if key == "revaluation":
+            _d = val - prev
+            delta = f"{'+' if _d >= 0 else '-'}{fmt_kusd(abs(_d))} YoY"
+        else:
+            delta = y2y(val, prev)
+        st.metric(label, fmt_kusd(val), delta)
         st.caption(f"Тренд {short} · январь — {_last_name}")
         st.plotly_chart(sparkline(pl_series(rows, key, "fact", 2026), color),
                         use_container_width=True, config={"displayModeBar": False})
