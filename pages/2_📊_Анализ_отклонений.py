@@ -306,7 +306,12 @@ with tab_pf:
             dev = f - p
             fact_s, plan_s = fmt_kusd(f), (fmt_kusd(p) if p else "—")
             dev_s = fmt_kusd(dev)
-            done_s = (f"{f / p * 100:.1f}%" if p else "—")
+            if not p:
+                done_s = "—"                       # плана нет
+            elif abs(p) < 10 or f * p < 0:
+                done_s = "n/m"                     # план ≈ 0 или смена знака → % не показателен
+            else:
+                done_s = f"{f / p * 100:.1f}%"
         table.append({"Метрика": label.strip(), "Факт": fact_s, "План": plan_s,
                       "Отклонение": dev_s, "Выполнение": done_s})
         dev_info.append((dev, m_fmt_ == "pct"))
@@ -336,7 +341,8 @@ with tab_pf:
                               **{"text-align": "right"}))
     st.dataframe(styler, use_container_width=True, hide_index=True)
     st.caption("Цвет «Отклонения»: зелёный — вклад в рост чистой прибыли, "
-               "красный — снижение; насыщенность отражает размер отклонения.")
+               "красный — снижение; насыщенность отражает размер отклонения. "
+               "**n/m** в «Выполнении» — план ≈ 0 или смена знака, % не показателен.")
     chart_card_close()
 
     # ----- Общий анализ под сводом -----
@@ -350,16 +356,22 @@ with tab_pf:
     drivers = []
     for row_list, label in PNL_FACTORS:
         bud = sum(pl_rows_value(rows, row_list, m, "budget") for m in months)
-        var = sum(pl_rows_value(rows, row_list, m, "fact") for m in months) - bud
+        fct = sum(pl_rows_value(rows, row_list, m, "fact") for m in months)
+        var = fct - bud
         if abs(var) >= 0.5:
-            drivers.append((label, var, bud))
+            drivers.append((label, var, bud, fct))
     helped = sorted([d for d in drivers if d[1] > 0], key=lambda s: -s[1])[:3]
     hurt = sorted([d for d in drivers if d[1] < 0], key=lambda s: s[1])[:3]
 
-    def _drv(l, d, b):
-        # % = отклонение к плану статьи; где плана нет — без процента
-        p = f", {d / abs(b) * 100:+.0f}%" if b else ""
-        return f"{l} ({fmt_kusd(d)}{p})"
+    def _drv(l, d, b, f):
+        # % к плану статьи — только когда показателен:
+        if abs(b) < 10:                 # план практически нулевой
+            note = ", план ≈ 0"
+        elif f * b < 0:                 # факт и план разного знака — % обманчив
+            note = ", смена знака"
+        else:
+            note = f", {d / abs(b) * 100:+.0f}%"
+        return f"{l} ({fmt_kusd(d)}{note})"
 
     net_dev = net_f - net_b
     parts = [f"#### 🧭 Общий анализ · {period_label}"]
@@ -383,10 +395,10 @@ with tab_pf:
             f"{over / abs(opex_b) * 100:+.0f}%).")
     if helped:
         parts.append("**Рост за счёт:** "
-                     + ", ".join(_drv(l, d, b) for l, d, b in helped) + ".")
+                     + ", ".join(_drv(l, d, b, f) for l, d, b, f in helped) + ".")
     if hurt:
         parts.append("**Снижение за счёт:** "
-                     + ", ".join(_drv(l, d, b) for l, d, b in hurt) + ".")
+                     + ", ".join(_drv(l, d, b, f) for l, d, b, f in hurt) + ".")
     st.markdown(_md("\n\n".join(parts)))
 
 # ========================= ПЕРИОД К ПЕРИОДУ =========================
