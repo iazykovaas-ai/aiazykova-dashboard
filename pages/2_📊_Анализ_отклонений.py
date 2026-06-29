@@ -303,6 +303,7 @@ with tab_pf:
             residual = (tot_f - tot_b) - sum(d for _, d in steps)
             if abs(residual) > 1:
                 steps.append(("Прочие (other, agent и др.)", residual))
+            steps.sort(key=lambda s: s[1])   # «Прочие» встают по величине, а не в конец
             plabel = (MONTH_NAMES_RU[fmonths[0] - 1] if len(fmonths) == 1
                       else f"{MONTH_NAMES_RU[fmonths[0] - 1]} — {MONTH_NAMES_RU[fmonths[-1] - 1]}")
             show_bridge(bf_kind, "Бюджет маржи", tot_b, steps, "Факт маржи", tot_f,
@@ -473,6 +474,7 @@ with tab_pp:
             residual = (tot_cur - tot_prev) - sum(d for _, d in steps)
             if abs(residual) > 1:
                 steps.append(("Прочие (other, agent и др.)", residual))
+            steps.sort(key=lambda s: s[1])   # «Прочие» встают по величине, а не в конец
             show_bridge(pp_kind, f"Маржа {MONTH_NAMES_RU[sp - 1]}", tot_prev, steps,
                              f"Маржа {MONTH_NAMES_RU[sc - 1]}", tot_cur,
                              f"Маржинальная прибыль по сегментам: {MONTH_NAMES_RU[sp - 1]} → {MONTH_NAMES_RU[sc - 1]} {TARGET_YEAR}",
