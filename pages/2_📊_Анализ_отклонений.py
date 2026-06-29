@@ -11,8 +11,10 @@ from components.assistant import render_assistant
 from components.kpi import fmt_kusd
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
                                hero, style_plotly_2d)
-from config import MONTH_NAMES_RU, MONTH_NAMES_SHORT, TARGET_MONTH, TARGET_YEAR
-from data.sheets_loader import (load_pl_global_raw, pl_value, seg_fact_months,
+from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_FULL_METRICS,
+                    TARGET_MONTH, TARGET_YEAR)
+from data.sheets_loader import (load_pl_global_raw, pl_value, pl_rows_value,
+                                seg_fact_months,
                                 seg_margin_budget, seg_margin_fact, seg_margin_total)
 
 st.set_page_config(page_title="Анализ отклонений", page_icon="📊", layout="wide")
@@ -130,12 +132,16 @@ with tab_pf:
     st.markdown("")
 
     # Помесячно план/факт + % выполнения
-    m_sel = st.selectbox("Метрика для графика", KPI_KEYS,
-                         format_func=lambda k: labels[k], key="ao_metric")
-    chart_card_open(f"План vs Факт по месяцам · {labels[m_sel]} · {period_label}", "тыс. USD")
+    mi = st.selectbox("Метрика для графика", list(range(len(PL_FULL_METRICS))),
+                      format_func=lambda i: PL_FULL_METRICS[i][0].strip(), key="ao_metric")
+    m_label, m_rows = PL_FULL_METRICS[mi]
+    m_label = m_label.strip()
+    chart_card_open(f"План vs Факт по месяцам · {m_label} · {period_label}", "тыс. USD")
     months = list(range(from_m, to_m + 1))
-    plan = [pl_value(rows, m_sel, m, "budget") for m in months]
-    fact = [pl_value(rows, m_sel, m, "fact") for m in months]
+    plan = [pl_rows_value(rows, m_rows, m, "budget") for m in months]
+    fact = [pl_rows_value(rows, m_rows, m, "fact") for m in months]
+    if not any(plan):
+        st.caption("ℹ️ По этой статье плана нет — показан только факт.")
     xnames = [MONTH_NAMES_SHORT[m - 1] for m in months]
     fig = go.Figure()
     fig.add_trace(go.Bar(x=xnames, y=plan, name="План", marker=dict(color="#8B7BF0"),

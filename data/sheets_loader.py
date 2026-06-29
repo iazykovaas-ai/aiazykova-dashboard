@@ -114,6 +114,18 @@ def pl_value(rows: list[list[str]], metric: str, month: int, source: str = "fact
     return parse_ru_number(_cell(rows, row, col))
 
 
+def pl_rows_value(rows: list[list[str]], row_list, month: int,
+                  source: str = "fact", year: int = 2026) -> float:
+    """Сумма значений по нескольким строкам PL за месяц (для статей из 2 частей)."""
+    if source == "budget":
+        col = PL_BUDGET_2026_COLS[month]
+    elif year == 2026:
+        col = PL_FACT_2026_COLS[month]
+    else:
+        col = PL_FACT_2025_COLS[month]
+    return sum(parse_ru_number(_cell(rows, r, col)) for r in row_list)
+
+
 def pl_series(rows: list[list[str]], metric: str, source: str = "fact",
               year: int = 2026, months: int = 12) -> list[float]:
     """Серия значений за 1..months месяцев."""
