@@ -33,14 +33,16 @@ KPI_KEYS = ["turnover", "gross_profit", "net_profit"]
 
 # Факторы P&L, складывающиеся в чистую прибыль (выручка/прямые расходы — внутри маржи)
 PNL_FACTORS = [
-    ("gross_profit",      "Валовая прибыль (маржа)"),
-    ("revaluation",       "Переоценка"),
-    ("realized_fx",       "Внутрибанк. конвертации"),
-    ("unrealized_fx",     "Нереализ. FX"),
-    ("opex",              "OPEX"),
-    ("other_income",      "Прочие дох./расх."),
-    ("financial_inc_exp", "Финансовые"),
-    ("income_tax",        "Налог"),
+    ([35],       "Валовая прибыль (маржа)"),
+    ([54],       "Переоценка"),
+    ([55],       "Внутрибанковские конвертации"),
+    ([56],       "Нереализованные курсовые"),
+    ([57],       "OPEX"),
+    ([146],      "Прочие доходы и расходы"),
+    ([169],      "Финансовые прибыли/убытки"),
+    ([170, 171], "Хеджирование"),
+    ([172],      "Прочие финансовые"),
+    ([174],      "Налог"),
 ]
 
 
@@ -225,11 +227,11 @@ with tab_pf:
         net_budget = pl_sum("net_profit", from_m, to_m, "budget")
         net_fact = pl_sum("net_profit", from_m, to_m, "fact")
         steps, covered = [], 0.0
-        for key, label in PNL_FACTORS:
-            bud = pl_sum(key, from_m, to_m, "budget")
+        for row_list, label in PNL_FACTORS:
+            bud = sum(pl_rows_value(rows, row_list, m, "budget") for m in months)
             if bud == 0:
                 continue
-            var = pl_sum(key, from_m, to_m, "fact") - bud
+            var = sum(pl_rows_value(rows, row_list, m, "fact") for m in months) - bud
             steps.append((label, var))
             covered += var
         residual = (net_fact - net_budget) - covered
@@ -291,8 +293,9 @@ with tab_pp:
         net_prev = pl_sum("net_profit", prev_m, prev_m, "fact")
         net_cur = pl_sum("net_profit", cur_m, cur_m, "fact")
         steps = []
-        for key, label in PNL_FACTORS:
-            delta = pl_sum(key, cur_m, cur_m, "fact") - pl_sum(key, prev_m, prev_m, "fact")
+        for row_list, label in PNL_FACTORS:
+            delta = (pl_rows_value(rows, row_list, cur_m, "fact")
+                     - pl_rows_value(rows, row_list, prev_m, "fact"))
             if abs(delta) > 1:
                 steps.append((label, delta))
         show_bridge(pp_kind, f"ЧП {MONTH_NAMES_RU[prev_m - 1]}", net_prev, steps,
