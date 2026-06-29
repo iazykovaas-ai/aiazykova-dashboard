@@ -26,6 +26,13 @@ hero("📊 Анализ отклонений",
 
 rows = load_pl_global_raw()
 
+
+def _md(s: str) -> str:
+    """Экранирует $ — иначе markdown трактует $...$ как формулу LaTeX
+    (курсивный шрифт и съеденные пробелы между разрядами)."""
+    return s.replace("$", "\\$")
+
+
 # Метрики с заполненным бюджетом (выручка/прямые расходы — пусто, не показываем)
 PF_METRICS = [("turnover", "Оборот"), ("gross_profit", "Маржинальная прибыль"),
               ("opex", "OPEX"), ("net_profit", "Чистая прибыль")]
@@ -104,7 +111,7 @@ def contrib_bars(steps, title, subtitle):
 def show_bridge(kind, start_label, start_val, steps, end_label, end_val, title, subtitle):
     if kind == "Вклад (бары)":
         contrib_bars(steps, title, subtitle)
-        st.caption(f"{start_label}: {fmt_kusd(start_val)}  →  {end_label}: {fmt_kusd(end_val)}")
+        st.caption(_md(f"{start_label}: {fmt_kusd(start_val)}  →  {end_label}: {fmt_kusd(end_val)}"))
     else:
         waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, subtitle)
 
@@ -120,7 +127,7 @@ def insight_box(total_dev, steps):
         parts.append("Снизили: " + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in neg) + ".")
     if pos:
         parts.append("Помогли: " + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in pos) + ".")
-    st.info(" ".join(parts))
+    st.info(_md(" ".join(parts)))
 
 
 def seg_steps(cur: dict, base: dict):
@@ -220,11 +227,11 @@ with tab_pf:
         ftot, ptot = sum(fact), sum(plan)
         if ptot:
             dev = ftot - ptot
-            st.info(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)}, план "
-                    f"{fmt_kusd(ptot)}, отклонение {'+' if dev >= 0 else '−'}{fmt_kusd(abs(dev))} "
-                    f"({ftot / ptot * 100 - 100:+.0f}% к плану).")
+            st.info(_md(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)}, план "
+                        f"{fmt_kusd(ptot)}, отклонение {'+' if dev >= 0 else '−'}{fmt_kusd(abs(dev))} "
+                        f"({ftot / ptot * 100 - 100:+.0f}% к плану)."))
         else:
-            st.info(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)} (плана нет).")
+            st.info(_md(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)} (плана нет)."))
     chart_card_close()
 
     # Факторный мостик «Бюджет → Факт»
@@ -364,7 +371,7 @@ with tab_pf:
     if helped:
         parts.append("**Поддержали прибыль:** "
                      + ", ".join(f"{l} ({fmt_kusd(d)})" for l, d in helped) + ".")
-    st.markdown("\n\n".join(parts))
+    st.markdown(_md("\n\n".join(parts)))
 
 # ========================= ПЕРИОД К ПЕРИОДУ =========================
 with tab_pp:
