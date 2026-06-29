@@ -134,30 +134,57 @@ with tab_pf:
     # Помесячно план/факт + % выполнения
     mi = st.selectbox("Метрика для графика", list(range(len(PL_FULL_METRICS))),
                       format_func=lambda i: PL_FULL_METRICS[i][0].strip(), key="ao_metric")
-    m_label, m_rows = PL_FULL_METRICS[mi]
+    m_label, m_rows, m_fmt = PL_FULL_METRICS[mi]
     m_label = m_label.strip()
-    chart_card_open(f"План vs Факт по месяцам · {m_label} · {period_label}", "тыс. USD")
     months = list(range(from_m, to_m + 1))
     plan = [pl_rows_value(rows, m_rows, m, "budget") for m in months]
     fact = [pl_rows_value(rows, m_rows, m, "fact") for m in months]
-    if not any(plan):
-        st.caption("ℹ️ По этой статье плана нет — показан только факт.")
-    xnames = [MONTH_NAMES_SHORT[m - 1] for m in months]
+
+    def _fmt(v):
+        return f"{v * 100:.2f}%" if m_fmt == "pct" else fmt_kusd(v)
+
+    chart_card_open(f"Факт vs План · {m_label} · {period_label}",
+                    "горизонтально · по месяцам")
+    ynames = [MONTH_NAMES_RU[m - 1] for m in months]
+    pv = [v * 100 if m_fmt == "pct" else v for v in plan]
+    fv2 = [v * 100 if m_fmt == "pct" else v for v in fact]
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=xnames, y=plan, name="План", marker=dict(color="#8B7BF0"),
-                         text=[fmt_kusd(v) for v in plan], textposition="outside",
-                         textfont=dict(color=PALETTE["ink"], size=10),
-                         hovertemplate="<b>%{x}</b><br>План: %{text}<extra></extra>"))
-    fig.add_trace(go.Bar(x=xnames, y=fact, name="Факт",
+    fig.add_trace(go.Bar(y=ynames, x=pv, name="План", orientation="h",
+                         marker=dict(color="#8B7BF0"),
+                         text=[_fmt(v) for v in plan], textposition="outside",
+                         textfont=dict(color=PALETTE["ink"], size=11),
+                         hovertemplate="<b>%{y}</b><br>План: %{text}<extra></extra>"))
+    fig.add_trace(go.Bar(y=ynames, x=fv2, name="Факт", orientation="h",
                          marker=dict(color=["#2FD9A6" if f >= p else "#FF5C7A"
                                             for f, p in zip(fact, plan)]),
-                         text=[fmt_kusd(v) for v in fact], textposition="outside",
-                         textfont=dict(color=PALETTE["ink"], size=10),
-                         hovertemplate="<b>%{x}</b><br>Факт: %{text}<extra></extra>"))
-    style_plotly_2d(fig, height=400)
-    fig.update_layout(barmode="group", xaxis=dict(showgrid=False),
-                      legend=dict(orientation="h", y=1.12))
+                         text=[_fmt(v) for v in fact], textposition="outside",
+                         textfont=dict(color=PALETTE["ink"], size=11),
+                         hovertemplate="<b>%{y}</b><br>Факт: %{text}<extra></extra>"))
+    style_plotly_2d(fig, height=max(240, 95 * len(months)))
+    fig.update_layout(barmode="group", yaxis=dict(autorange="reversed", showgrid=False),
+                      xaxis=dict(showticklabels=False, showgrid=True),
+                      legend=dict(orientation="h", y=1.15))
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    # авто-описание за период
+    if m_fmt == "pct":
+        fp = sum(fact) / len(fact) if fact else 0
+        pp = sum(plan) / len(plan) if plan else 0
+        if pp:
+            dev = (fp - pp) * 100
+            st.info(f"📌 **{m_label}** за {period_label}: факт {fp * 100:.2f}% против плана "
+                    f"{pp * 100:.2f}% — {'выше' if dev >= 0 else 'ниже'} на {abs(dev):.1f} п.п.")
+        else:
+            st.info(f"📌 **{m_label}**: факт {fp * 100:.2f}% (плана нет).")
+    else:
+        ftot, ptot = sum(fact), sum(plan)
+        if ptot:
+            dev = ftot - ptot
+            st.info(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)}, план "
+                    f"{fmt_kusd(ptot)}, отклонение {'+' if dev >= 0 else '−'}{fmt_kusd(abs(dev))} "
+                    f"({ftot / ptot * 100 - 100:+.0f}% к плану).")
+        else:
+            st.info(f"📌 **{m_label}** за {period_label}: факт {fmt_kusd(ftot)} (плана нет).")
     chart_card_close()
 
     # Факторный мостик «Бюджет → Факт»
