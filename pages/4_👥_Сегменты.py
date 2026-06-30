@@ -7,6 +7,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from components.assistant import render_assistant
+from components.glossary import PAGE_SEG, render_abbr_expander
 from components.kpi import format_money
 from components.styles import (CHART_COLORS, PALETTE, apply,
                                chart_card_close, chart_card_open, cuboid_mesh,
@@ -18,6 +19,8 @@ apply()
 render_assistant()
 
 hero("👥 Клиенты по типам", "14 типов клиентов · обороты и количество")
+
+render_abbr_expander(PAGE_SEG)
 
 df = load("clients", use_stub=True)
 df["Оборот, $"] = df["Оборот, млн $"] * 1_000_000

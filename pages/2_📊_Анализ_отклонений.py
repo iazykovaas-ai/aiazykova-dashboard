@@ -8,6 +8,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from components.assistant import render_assistant
+from components.glossary import PAGE_DEV, render_abbr_expander
 from components.kpi import fmt_kusd
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
                                col_separators, hero, row_separators, style_plotly_2d)
@@ -23,6 +24,8 @@ render_assistant()
 
 hero("📊 Анализ отклонений",
      "Факт против плана и против прошлого периода — с разбором по факторам и кратким выводом")
+
+render_abbr_expander(PAGE_DEV)
 
 rows = load_pl_global_raw()
 

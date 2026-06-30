@@ -170,7 +170,7 @@ with right:
                         f"{MON_METRIC_LABELS[metric]} · без Other / Agent / Gold")
         bd = mon_line_breakdown(rows, metric, month)
         items = sorted(bd.items(), key=lambda kv: kv[1])
-        ys = [k for k, _ in items]
+        ys = [MON_LINE_LABELS_RU.get(k, k) for k, _ in items]
         xs = [v * 100 for _, v in items] if metric_fmt == "pct" else [v for _, v in items]
         fig = go.Figure(go.Bar(
             x=xs, y=ys, orientation="h",
@@ -293,7 +293,7 @@ hb = {m: mon_line_breakdown(rows, "turnover", m) for m in mm}
 z = [[hb[m].get(line, 0.0) for m in mm] for line in MON_LINES]
 ztext = [[_k(hb[m].get(line, 0.0)) for m in mm] for line in MON_LINES]
 hfig = go.Figure(go.Heatmap(
-    z=z, x=cnames, y=MON_LINES,
+    z=z, x=cnames, y=[MON_LINE_LABELS_RU.get(l, l) for l in MON_LINES],
     colorscale=[[0, "#0E1430"], [0.5, "#27506E"], [1, "#2FD9A6"]],
     text=ztext, texttemplate="%{text}", textfont=dict(size=10, color="#E8EAF6"),
     hovertemplate="<b>%{y}</b> · %{x}<br>%{text}<extra></extra>",
@@ -332,7 +332,8 @@ for line in MON_LINES:
         light = "🟡"
     else:
         light = "🔴"
-    seg_rows.append({"Сегмент": line, "Оборот": _k(seg_turn.get(line, 0.0)),
+    seg_rows.append({"Сегмент": MON_LINE_LABELS_RU.get(line, line),
+                     "Оборот": _k(seg_turn.get(line, 0.0)),
                      "Маржинальность": f"{mg * 100:.2f}%", "Статус": light})
 st.dataframe(pd.DataFrame(seg_rows), use_container_width=True, hide_index=True, height=430)
 chart_card_close()
