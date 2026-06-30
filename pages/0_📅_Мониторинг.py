@@ -225,13 +225,17 @@ _dcolors = mom_colors(dt, "#36C5F0")[0]
 dcfig.add_trace(go.Bar(
     x=dx, y=dt, name="Оборот",
     marker=dict(color=_dcolors, line=dict(width=0)),
+    text=[_k(v) for v in dt], textposition="outside", textangle=-90,
+    textfont=dict(color=PALETTE["ink"], size=8), cliponaxis=False,
     customdata=[_k(v) for v in dt],
     hovertemplate="<b>%{x}</b><br>Оборот: %{customdata}<extra></extra>",
 ), secondary_y=False)
 dcfig.add_trace(go.Scatter(
     x=dx, y=dg, name="Маржинальность",
-    mode="lines+markers", line=dict(color="#F5B544", width=2),
+    mode="lines+markers+text", line=dict(color="#F5B544", width=2),
     marker=dict(size=6),
+    text=[f"{v:.2f}".replace(".", ",") + "%" for v in dg], textposition="top center",
+    textfont=dict(color="#F5B544", size=8),
     hovertemplate="<b>%{x}</b><br>Маржинальность: %{y:.2f}%<extra></extra>",
 ), secondary_y=True)
 style_plotly_2d(dcfig, height=440)
@@ -241,7 +245,7 @@ dcfig.update_yaxes(title_text="Оборот, $", secondary_y=False)
 dcfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False, secondary_y=True)
 st.plotly_chart(dcfig, use_container_width=True, config={"displayModeBar": False})
 st.caption("🟢 рост оборота ко вчера · 🔴 спад · насыщеннее = сильнее изменение. "
-           "Значения по дням — в подсказке при наведении (на ~30 столбцах подписи наложились бы).")
+           "Подписи: оборот — на столбцах (вертикально), маржинальность — над точками.")
 chart_card_close()
 
 # ===== Тепловая карта: бизнес-линии × месяцы (оборот) =====
