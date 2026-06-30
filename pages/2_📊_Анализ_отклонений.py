@@ -488,3 +488,67 @@ with tab_pp:
                              f"Маржинальная прибыль по сегментам: {MONTH_NAMES_RU[sp - 1]} → {MONTH_NAMES_RU[sc - 1]} {TARGET_YEAR}",
                              "Вклад каждого сегмента в изменение (тыс. USD)")
             insight_box(tot_cur - tot_prev, steps, subject="Маржинальная прибыль")
+
+    # ===================== ОБЩИЙ СВОД: все метрики (период к периоду) =====================
+    st.markdown("---")
+    sc1, sc2 = st.columns(2)
+    with sc1:
+        svp_cur = st.selectbox("Текущий месяц (свод)", list(range(1, 13)),
+                               format_func=lambda x: MONTH_NAMES_RU[x - 1],
+                               index=TARGET_MONTH - 1, key="ao_pp_svod_cur")
+    with sc2:
+        svp_prev = st.selectbox("Сравнить с месяцем (свод)", list(range(1, 13)),
+                                format_func=lambda x: MONTH_NAMES_RU[x - 1],
+                                index=max(0, TARGET_MONTH - 2), key="ao_pp_svod_prev")
+    chart_card_open(
+        f"📋 Общий свод · все метрики · {MONTH_NAMES_RU[svp_prev - 1]} → "
+        f"{MONTH_NAMES_RU[svp_cur - 1]} {TARGET_YEAR}",
+        "факт vs факт по всем статьям P&L")
+    pp_table, pp_dev_info = [], []
+    for label, m_rows_, m_fmt_ in PL_FULL_METRICS:
+        cur = pl_rows_value(rows, m_rows_, svp_cur, "fact")
+        prv = pl_rows_value(rows, m_rows_, svp_prev, "fact")
+        dev = cur - prv
+        if m_fmt_ == "pct":
+            cur_s, prv_s = f"{cur * 100:.2f}%", f"{prv * 100:.2f}%"
+            dev_s, chg_s = f"{dev * 100:+.2f} п.п.", "—"
+        else:
+            cur_s, prv_s = fmt_kusd(cur), fmt_kusd(prv)
+            dev_s = fmt_kusd(dev)
+            if abs(prv) < 10 or cur * prv < 0:
+                chg_s = "n/m"        # пред. месяц ≈ 0 или смена знака → % не показателен
+            else:
+                chg_s = f"{cur / prv * 100 - 100:+.1f}%"
+        pp_table.append({"Метрика": label.strip(), "Текущий": cur_s, "Предыдущий": prv_s,
+                         "Изменение": dev_s, "Δ": chg_s})
+        pp_dev_info.append((dev, m_fmt_ == "pct"))
+
+    pp_mmax = max((abs(d) for d, ip in pp_dev_info if not ip), default=1) or 1
+    pp_pmax = max((abs(d) for d, ip in pp_dev_info if ip), default=1) or 1
+
+    def _pp_dev_styles(col):
+        out = []
+        for i in range(len(col)):
+            d, ip = pp_dev_info[i]
+            scale = pp_pmax if ip else pp_mmax
+            inten = min(1.0, abs(d) / scale) if scale else 0
+            a = 0.12 + 0.5 * inten
+            if d >= 0:
+                out.append(f"background-color: rgba(47,217,166,{a:.2f}); color:#EAFBF4")
+            else:
+                out.append(f"background-color: rgba(255,92,122,{a:.2f}); color:#FFECF0")
+        return out
+
+    pp_df = pd.DataFrame(pp_table)
+    pp_styler = (pp_df.style
+                 .apply(_pp_dev_styles, subset=["Изменение"])
+                 .set_properties(subset=["Текущий", "Предыдущий", "Изменение", "Δ"],
+                                 **{"text-align": "right"}))
+    st.session_state.setdefault("svod_pp_nonce", 0)
+    if st.button("↺ Сбросить сортировку и ширину", key="svod_pp_reset"):
+        st.session_state.svod_pp_nonce += 1
+    st.dataframe(pp_styler, use_container_width=True, hide_index=True,
+                 key=f"svod_pp_table_{st.session_state.svod_pp_nonce}")
+    st.caption("Цвет «Изменения»: зелёный — вклад в рост чистой прибыли, красный — снижение; "
+               "насыщенность отражает размер. **n/m** в «Δ» — пред. месяц ≈ 0 или смена знака.")
+    chart_card_close()
