@@ -88,7 +88,7 @@ st.markdown("")
 
 # ===== Дневная динамика выбранной метрики =====
 chart_card_open(f"Дневная динамика · {MON_METRIC_LABELS[metric]} · {month_name}",
-                "по дате закрытия сделки · включая Other / Agent / Gold")
+                "по дням · включая Other / Agent / Gold (сумма по дням > месячного итога)")
 daily = mon_summary_daily(rows, metric, month)
 x = [d.strftime("%d.%m") for d, _ in daily]
 y = [v for _, v in daily]
@@ -189,7 +189,8 @@ with right:
         chart_card_close()
 
 # ===== Таблица: дни месяца =====
-chart_card_open(f"Детализация по дням · {month_name}", "")
+chart_card_open(f"Детализация по дням · {month_name}",
+                "по дням · включая Other / Agent / Gold")
 tbl = {"Дата": [d.strftime("%d.%m.%Y") for d, _ in daily]}
 for key in KPI_METRICS:
     meta = MON_SUMMARY_ROWS[key]
@@ -263,7 +264,7 @@ chart_card_close()
 
 # ===== Таблица-светофор по сегментам =====
 chart_card_open(f"Светофор по сегментам · {month_name}",
-                "🟢 маржа выше средней по месяцу · 🟡 половина средней · 🔴 ниже")
+                "без Other / Agent / Gold · 🟢 маржа выше средней по месяцу · 🟡 половина · 🔴 ниже")
 seg_turn = mon_line_breakdown(rows, "turnover", month)
 seg_marg = mon_line_breakdown(rows, "marginality", month)
 avg_marg = mon_summary_monthly(rows, "marginality", month)
