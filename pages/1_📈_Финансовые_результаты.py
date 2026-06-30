@@ -385,13 +385,13 @@ else:
                                       font_color=PALETTE["ink"], bordercolor=PALETTE["primary"]))
 st.plotly_chart(fig, use_container_width=True, config=_MB)
 if opex_view == "Treemap":
-    # Мелкие плитки нечитаемы → дублируем все группы строкой с числами и %
+    # Мелкие плитки/ховер у края нечитаемы → даём полную таблицу-расшифровку
     _tot = sum(t[2] for t in ovals) or 1
-    _leg = " · ".join(
-        f"{t[1]} — {_opex_amt(t[2])} ("
-        + f"{t[2] / _tot * 100:.2f}".replace(".", ",") + "%)"
-        for t in sorted(ovals, key=lambda t: -t[2]))
-    st.caption(("Все группы OPEX: " + _leg).replace("$", "\\$"))
+    _tbl = "| Группа | Сумма | Доля |\n|---|--:|--:|\n"
+    for t in sorted(ovals, key=lambda t: -t[2]):
+        _pct = f"{t[2] / _tot * 100:.2f}".replace(".", ",")
+        _tbl += f"| {t[1]} | {_opex_amt(t[2])} | {_pct}% |\n"
+    st.markdown(_tbl.replace("$", "\\$"))
 chart_card_close()
 
 # --- Динамика по месяцам (площадь / бары, выбор метрики) ---
