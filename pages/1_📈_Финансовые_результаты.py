@@ -363,11 +363,12 @@ else:
         values=[t[2] for t in ovals],
         marker=dict(colors=[t[3] for t in ovals], line=dict(color="#0A0E20", width=2)),
         customdata=[f"{t[1]} · {fmt_kusd(t[2])}" for t in ovals],
-        texttemplate="<b>%{label}</b><br>%{value:.0f} тыс. $<br>%{percentRoot}",
+        texttemplate="<b>%{label}</b><br>%{value:.0f} тыс. $<br>%{percentRoot:.2%}",
         textfont=dict(size=14, color="#0A0E20"),
-        hovertemplate="<b>%{label}</b><br>%{customdata}<br>%{percentRoot}<extra></extra>"))
+        hovertemplate="<b>%{label}</b><br>%{customdata}<br>доля %{percentRoot:.2%}<extra></extra>"))
+    # separators=", " → десятичная запятая (доля «80,33%»), тысячи — пробел
     fig.update_layout(height=440, margin=dict(l=6, r=6, t=6, b=6),
-                      paper_bgcolor="rgba(0,0,0,0)", separators=". ",
+                      paper_bgcolor="rgba(0,0,0,0)", separators=", ",
                       uniformtext=dict(minsize=9, mode="show"),
                       hoverlabel=dict(bgcolor="#1B2247", font_size=13,
                                       font_color=PALETTE["ink"], bordercolor=PALETTE["primary"]))
@@ -376,7 +377,8 @@ if opex_view == "Treemap":
     # Мелкие плитки нечитаемы → дублируем все группы строкой с числами и %
     _tot = sum(t[2] for t in ovals) or 1
     _leg = " · ".join(
-        f"{t[1]} — " + f"{t[2]:,.0f}".replace(",", " ") + f" тыс. ({t[2] / _tot * 100:.0f}%)"
+        f"{t[1]} — " + f"{t[2]:,.0f}".replace(",", " ") + " тыс. ("
+        + f"{t[2] / _tot * 100:.2f}".replace(".", ",") + "%)"
         for t in sorted(ovals, key=lambda t: -t[2]))
     st.caption("Все группы OPEX: " + _leg)
 chart_card_close()
