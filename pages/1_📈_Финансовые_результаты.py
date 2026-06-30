@@ -337,6 +337,16 @@ opex_groups = [
     ("opex_other",        "Other Operating",    "Прочие операционные расходы", "#FF8AC4"),
 ]
 ovals = [(le, lr, abs(fv(k)), c) for k, le, lr, c in opex_groups]
+
+
+def _opex_amt(v_k: float) -> str:
+    """Сумма группы OPEX (значение в тыс. USD). Для мелких (<1 тыс.) — в долларах,
+    чтобы не превращалось в неинформативные «$0 k»."""
+    if abs(v_k) < 1:
+        return "$" + f"{v_k * 1000:,.0f}".replace(",", " ")
+    return f"{v_k:,.0f}".replace(",", " ") + " тыс. $"
+
+
 opex_view = st.radio("Вид структуры OPEX", ["Бары", "Treemap"], horizontal=True, key="opex_view")
 # В Treemap единицы написаны внутри плиток («тыс. $») → в подписи их не дублируем
 _opex_sub = "по группам расходов, тыс. USD" if opex_view == "Бары" else "по группам расходов"
@@ -363,7 +373,7 @@ else:
         labels=[t[0] for t in ovals], parents=[""] * len(ovals),
         values=[t[2] for t in ovals],
         marker=dict(colors=[t[3] for t in ovals], line=dict(color="#0A0E20", width=2)),
-        customdata=[f"{t[1]} · {fmt_kusd(t[2])}" for t in ovals],
+        customdata=[f"{t[1]} · {_opex_amt(t[2])}" for t in ovals],
         texttemplate="<b>%{label}</b><br>%{value:.0f} тыс. $<br>%{percentRoot:.2%}",
         textfont=dict(size=14, color="#0A0E20"),
         hovertemplate="<b>%{label}</b><br>%{customdata}<br>доля %{percentRoot:.2%}<extra></extra>"))
@@ -378,10 +388,10 @@ if opex_view == "Treemap":
     # Мелкие плитки нечитаемы → дублируем все группы строкой с числами и %
     _tot = sum(t[2] for t in ovals) or 1
     _leg = " · ".join(
-        f"{t[1]} — " + f"{t[2]:,.0f}".replace(",", " ") + " тыс. ("
+        f"{t[1]} — {_opex_amt(t[2])} ("
         + f"{t[2] / _tot * 100:.2f}".replace(".", ",") + "%)"
         for t in sorted(ovals, key=lambda t: -t[2]))
-    st.caption("Все группы OPEX: " + _leg)
+    st.caption(("Все группы OPEX: " + _leg).replace("$", "\\$"))
 chart_card_close()
 
 # --- Динамика по месяцам (площадь / бары, выбор метрики) ---
