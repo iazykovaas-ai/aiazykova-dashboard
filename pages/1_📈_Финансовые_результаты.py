@@ -54,27 +54,8 @@ else:
 
 month_name = period_label  # обратная совместимость со старыми f-строками
 
-# Расшифровка аббревиатур
-with st.expander("ℹ️ Расшифровка аббревиатур"):
-    st.markdown(
-        """
-        | Сокр. | Расшифровка |
-        |---|---|
-        | **YoY** | Year-over-Year — изменение к тому же периоду прошлого года |
-        | **MoM** | Month-over-Month — изменение к предыдущему месяцу |
-        | **YTD** | Year-to-Date — накопительно с начала года |
-        | **п.п.** | Процентные пункты (разница между %) |
-        | **Revenue** | Выручка |
-        | **GP / Gross Profit** | Валовая прибыль (Выручка − Прямые расходы) |
-        | **OPEX** | Operating Expenses — операционные (текущие) расходы |
-        | **G&A** | General & Administrative — общехозяйственные и административные расходы |
-        | **FX** | Foreign Exchange — валютные курсовые разницы |
-        | **Operating Profit** | Операционная прибыль (GP − OPEX ± FX) |
-        | **PBT** | Profit Before Tax — прибыль до налогообложения |
-        | **Net Profit** | Чистая прибыль (после уплаты налога) |
-        | **k / M USD** | Тысячи / миллионы долларов США |
-        """
-    )
+# Расшифровка аббревиатур (только те, что есть на этой странице)
+render_abbr_expander(PAGE_FIN)
 
 rows = load_pl_global_raw()
 
@@ -228,8 +209,9 @@ with tab_alt:
         # Software & IT = лаванда, Marketing = мята, Personnel = персик,
         # G&A = роза, Consulting = небо, Legal = ваниль, Other = сирень.
         # Прямые расходы и Налог — отдельные цвета (их нет на OPEX-графике).
-        cost_labels = ["Прямые расходы", "Software & IT", "Marketing", "Personnel",
-                       "G&A", "Consulting", "Legal", "Other Operating", "Налог"]
+        cost_labels = ["Прямые расходы", "ПО и ИТ", "Маркетинг", "Персонал",
+                       "Общехоз. и адм.", "Консалтинг", "Юр. и комплаенс",
+                       "Прочие операц.", "Налог"]
         cost_values = [abs(direct_costs),
                        abs(fv("opex_software_it")),
                        abs(fv("opex_marketing")),
@@ -330,13 +312,13 @@ _MB = {"displayModeBar": True, "displaylogo": False,
 
 # --- Структура OPEX (бары / treemap) ---
 opex_groups = [
-    ("opex_software_it",  "Software & IT",      "Расходы на ПО и ИТ",          "#8B7BF0"),
-    ("opex_marketing",    "Marketing",          "Маркетинг и реклама",         "#2FD9A6"),
-    ("opex_personnel",    "Personnel",          "Расходы на персонал",         "#F5B544"),
-    ("opex_ga",           "G&A",                "Общехоз. и админ. расходы",   "#E94FA1"),
-    ("opex_consulting",   "Consulting & Audit", "Консалтинг и аудит",          "#4A7DFF"),
-    ("opex_legal",        "Legal & Compliance", "Юридические и комплаенс",     "#3FE0C5"),
-    ("opex_other",        "Other Operating",    "Прочие операционные расходы", "#FF8AC4"),
+    ("opex_software_it",  "ПО и ИТ",          "Расходы на ПО и ИТ",          "#8B7BF0"),
+    ("opex_marketing",    "Маркетинг",        "Маркетинг и реклама",         "#2FD9A6"),
+    ("opex_personnel",    "Персонал",         "Расходы на персонал",         "#F5B544"),
+    ("opex_ga",           "Общехоз. и адм.",  "Общехоз. и админ. расходы",   "#E94FA1"),
+    ("opex_consulting",   "Консалтинг",       "Консалтинг и аудит",          "#4A7DFF"),
+    ("opex_legal",        "Юр. и комплаенс",  "Юридические и комплаенс",     "#3FE0C5"),
+    ("opex_other",        "Прочие операц.",   "Прочие операционные расходы", "#FF8AC4"),
 ]
 ovals = [(le, lr, abs(fv(k)), c) for k, le, lr, c in opex_groups]
 
