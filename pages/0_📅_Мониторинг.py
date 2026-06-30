@@ -256,8 +256,13 @@ dcfig.update_layout(legend=dict(orientation="h", y=1.12), bargap=0.3,
 # запас сверху → бары короче, подписи влезают; метки оси — авто (k/M под масштаб месяца)
 dcfig.update_yaxes(title_text="Оборот, $", tickformat="~s", showgrid=True,
                    range=[0, (max(dt) if dt else 1) * 1.25], secondary_y=False)
+# ось маржи: пускаем ниже 0, если есть отрицательные дни, и рисуем нулевую линию
+_gmin = min(dg) if dg else 0
+_glow = _gmin * 1.2 if _gmin < 0 else 0
 dcfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False,
-                   range=[0, (max(dg) if dg else 1) * 1.3], secondary_y=True)
+                   range=[_glow, (max(dg) if dg else 1) * 1.3],
+                   zeroline=True, zerolinecolor="rgba(255,255,255,0.25)",
+                   zerolinewidth=1, secondary_y=True)
 st.plotly_chart(dcfig, use_container_width=True, config={"displayModeBar": False})
 st.caption("🟢 рост оборота ко вчера · 🔴 спад · насыщеннее = сильнее изменение. "
            "Подписи: оборот — над столбцами, маржинальность — над точками. "
