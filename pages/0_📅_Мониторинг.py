@@ -260,6 +260,7 @@ _t_hi = (max(0.0, max(dt)) if dt else 1.0) * 1.25 or 1.0
 _g_hi = (max(0.0, max(dg)) if dg else 1.0) * 1.30 or 1.0
 _t_lo_need = (min(0.0, min(dt)) if dt else 0.0) * 1.2     # требуемый минус по обороту
 _g_lo_need = (min(0.0, min(dg)) if dg else 0.0) * 1.2     # требуемый минус по марже
+_g_lo_need = min(_g_lo_need, -0.5)                        # всегда показываем хотя бы до -0,5%
 
 
 def _zfrac(hi, lo):
@@ -274,7 +275,7 @@ _zl = dict(zeroline=True, zerolinecolor="rgba(255,255,255,0.25)", zerolinewidth=
 dcfig.update_yaxes(title_text="Оборот, $", tickformat="~s", showgrid=True,
                    range=[_t_lo, _t_hi], **_zl, secondary_y=False)
 dcfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False,
-                   range=[_g_lo, _g_hi], **_zl, secondary_y=True)
+                   range=[_g_lo, _g_hi], dtick=0.5, tick0=0, **_zl, secondary_y=True)
 st.plotly_chart(dcfig, use_container_width=True, config={"displayModeBar": False})
 st.caption("🟢 рост оборота ко вчера · 🔴 спад · насыщеннее = сильнее изменение. "
            "Подписи: оборот — над столбцами, маржинальность — над точками. "
