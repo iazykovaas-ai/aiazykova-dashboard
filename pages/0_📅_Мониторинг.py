@@ -134,7 +134,7 @@ st.plotly_chart(fig, use_container_width=True,
 chart_card_close()
 
 # ===== Сравнение месяцев + разбивка по линиям =====
-left, right = st.columns([1, 1])
+left, right = st.columns([2, 3])   # левый (помесячно) уже, правый (по линиям) шире
 
 with left:
     chart_card_open(f"Помесячно · {MON_METRIC_LABELS[metric]}",
@@ -178,10 +178,12 @@ with right:
             hovertemplate="<b>%{y}</b><br>%{text}<extra></extra>",
         ))
         style_plotly_2d(fig, height=380)
-        # запас справа, чтобы подписи у длинных баров (напр. Export) не обрезались
+        # запас справа и СЛЕВА (для отрицательных, напр. Export), чтобы подписи не обрезались
         _xmax = max(xs) if xs else 0
+        _xmin = min(xs) if xs else 0
+        _left = _xmin * 1.30 if _xmin < 0 else 0
         fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True,
-                                     range=[min(0, min(xs) if xs else 0), _xmax * 1.22]),
+                                     range=[_left, _xmax * 1.22]),
                           yaxis=dict(showgrid=False, tickfont=dict(size=12)),
                           shapes=row_separators(len(items)))
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
