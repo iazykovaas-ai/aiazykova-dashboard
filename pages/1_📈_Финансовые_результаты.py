@@ -385,13 +385,21 @@ else:
                                       font_color=PALETTE["ink"], bordercolor=PALETTE["primary"]))
 st.plotly_chart(fig, use_container_width=True, config=_MB)
 if opex_view == "Treemap":
-    # Мелкие плитки/ховер у края нечитаемы → даём полную таблицу-расшифровку
+    # Мелкие плитки/ховер у края нечитаемы → компактная горизонтальная лента-расшифровка
     _tot = sum(t[2] for t in ovals) or 1
-    _tbl = "| Группа | Сумма | Доля |\n|---|--:|--:|\n"
+    _chips = ""
     for t in sorted(ovals, key=lambda t: -t[2]):
         _pct = f"{t[2] / _tot * 100:.2f}".replace(".", ",")
-        _tbl += f"| {t[1]} | {_opex_amt(t[2])} | {_pct}% |\n"
-    st.markdown(_tbl.replace("$", "\\$"))
+        _amt = _opex_amt(t[2]).replace("$", "&#36;")   # $ как HTML-сущность (без LaTeX)
+        _chips += (
+            f"<span style='display:inline-block;margin:3px 6px 3px 0;padding:4px 10px;"
+            f"border-radius:8px;background:rgba(255,255,255,0.04);border-left:3px solid {t[3]};"
+            f"font-size:0.8rem;white-space:nowrap;'>"
+            f"<b style='color:#F2F3FA'>{t[1]}</b> · "
+            f"<span style='color:#C7CCEC'>{_amt}</span> · "
+            f"<span style='color:{t[3]};font-weight:600'>{_pct}%</span></span>")
+    st.markdown(f"<div style='display:flex;flex-wrap:wrap;line-height:1.9;'>{_chips}</div>",
+                unsafe_allow_html=True)
 chart_card_close()
 
 # --- Динамика по месяцам (площадь / бары, выбор метрики) ---
