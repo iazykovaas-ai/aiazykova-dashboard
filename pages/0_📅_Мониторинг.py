@@ -227,27 +227,31 @@ _dcolors = mom_colors(dt, "#36C5F0")[0]
 dcfig.add_trace(go.Bar(
     x=dx, y=dt, name="Оборот",
     marker=dict(color=_dcolors, line=dict(width=0)),
-    text=[_k(v) for v in dt], textposition="outside", textangle=-90,
-    textfont=dict(color=PALETTE["ink"], size=8), cliponaxis=False,
+    text=[_k(v) for v in dt], textposition="outside", textangle=0,
+    textfont=dict(color=PALETTE["ink"], size=10), cliponaxis=False,
     customdata=[_k(v) for v in dt],
     hovertemplate="<b>%{x}</b><br>Оборот: %{customdata}<extra></extra>",
 ), secondary_y=False)
 dcfig.add_trace(go.Scatter(
     x=dx, y=dg, name="Маржинальность",
     mode="lines+markers+text", line=dict(color="#F5B544", width=2),
-    marker=dict(size=6),
+    marker=dict(size=7),
     text=[f"{v:.2f}".replace(".", ",") + "%" for v in dg], textposition="top center",
-    textfont=dict(color="#F5B544", size=8),
+    textfont=dict(color="#F5B544", size=10),
     hovertemplate="<b>%{x}</b><br>Маржинальность: %{y:.2f}%<extra></extra>",
 ), secondary_y=True)
-style_plotly_2d(dcfig, height=440)
-dcfig.update_layout(legend=dict(orientation="h", y=1.12),
+style_plotly_2d(dcfig, height=520)
+dcfig.update_layout(legend=dict(orientation="h", y=1.12), bargap=0.3,
                     xaxis=dict(showgrid=False, type="category", tickangle=-45))
-dcfig.update_yaxes(title_text="Оборот, $", secondary_y=False)
-dcfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False, secondary_y=True)
+# запас сверху → бары короче, подписи влезают; метки оси — авто (k/M под масштаб месяца)
+dcfig.update_yaxes(title_text="Оборот, $", tickformat="~s", showgrid=True,
+                   range=[0, (max(dt) if dt else 1) * 1.25], secondary_y=False)
+dcfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False,
+                   range=[0, (max(dg) if dg else 1) * 1.3], secondary_y=True)
 st.plotly_chart(dcfig, use_container_width=True, config={"displayModeBar": False})
 st.caption("🟢 рост оборота ко вчера · 🔴 спад · насыщеннее = сильнее изменение. "
-           "Подписи: оборот — на столбцах (вертикально), маржинальность — над точками.")
+           "Подписи: оборот — над столбцами, маржинальность — над точками. "
+           "Тесно? Откройте график на весь экран кнопкой ⛶ сверху справа.")
 chart_card_close()
 
 # ===== Тепловая карта: бизнес-линии × месяцы (оборот) =====
