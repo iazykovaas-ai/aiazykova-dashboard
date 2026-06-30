@@ -178,7 +178,10 @@ with right:
             hovertemplate="<b>%{y}</b><br>%{text}<extra></extra>",
         ))
         style_plotly_2d(fig, height=380)
-        fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True),
+        # запас справа, чтобы подписи у длинных баров (напр. Export) не обрезались
+        _xmax = max(xs) if xs else 0
+        fig.update_layout(xaxis=dict(showticklabels=False, showgrid=True,
+                                     range=[min(0, min(xs) if xs else 0), _xmax * 1.22]),
                           yaxis=dict(showgrid=False, tickfont=dict(size=12)),
                           shapes=row_separators(len(items)))
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
@@ -201,44 +204,44 @@ st.dataframe(pd.DataFrame(tbl), use_container_width=True, hide_index=True, heigh
 chart_card_close()
 
 
-# ===== Комбо: оборот (бары) + маржинальность (линия) по месяцам =====
-chart_card_open("Оборот и маржинальность по месяцам",
-                "бары — оборот ($), линия — маржинальность (%) · без Other / Agent / Gold")
-mm = [m for m in months if m in MON_MONTH_TOTAL_COLS]
-combo = [(m, mon_summary_monthly(rows, "turnover", m), mon_summary_monthly(rows, "marginality", m))
-         for m in mm]
-combo = [(m, t, g) for m, t, g in combo if not math.isnan(t)]
-cnames = [MONTH_NAMES_RU[m - 1] for m, _, _ in combo]
-cturn = [t for _, t, _ in combo]
-cmarg = [g for _, _, g in combo]
-
-
 def _k(v: float) -> str:
     return f"{v / 1000:,.0f}".replace(",", " ") + "k"
 
 
-cfig = make_subplots(specs=[[{"secondary_y": True}]])
-cfig.add_trace(go.Bar(
-    x=cnames, y=cturn, name="Оборот",
-    marker=dict(color="#36C5F0", line=dict(width=0)),
-    text=[_k(v) for v in cturn], textposition="outside",
-    textfont=dict(color=PALETTE["ink"], size=11),
-    hovertemplate="<b>%{x}</b><br>Оборот: %{text}<extra></extra>",
+mm = [m for m in months if m in MON_MONTH_TOTAL_COLS]
+cnames = [MONTH_NAMES_RU[m - 1] for m in mm]   # подписи месяцев для тепловой карты
+
+# ===== Комбо: оборот (бары) + маржинальность (линия) по ДНЯМ =====
+chart_card_open(f"Оборот и маржинальность по дням · {month_name}",
+                "бары — оборот ($), линия — маржинальность (%) · включая Other / Agent / Gold")
+dturn = mon_summary_daily(rows, "turnover", month)
+dmarg = dict(mon_summary_daily(rows, "marginality", month))
+dx = [d.strftime("%d.%m") for d, _ in dturn]
+dt = [v for _, v in dturn]
+dg = [dmarg.get(d, 0.0) * 100 for d, _ in dturn]
+dcfig = make_subplots(specs=[[{"secondary_y": True}]])
+# цвет оборота по динамике ко вчера: рост — зелёный, спад — красный, яркость ~ силе изменения
+_dcolors = mom_colors(dt, "#36C5F0")[0]
+dcfig.add_trace(go.Bar(
+    x=dx, y=dt, name="Оборот",
+    marker=dict(color=_dcolors, line=dict(width=0)),
+    customdata=[_k(v) for v in dt],
+    hovertemplate="<b>%{x}</b><br>Оборот: %{customdata}<extra></extra>",
 ), secondary_y=False)
-cfig.add_trace(go.Scatter(
-    x=cnames, y=[g * 100 for g in cmarg], name="Маржинальность",
-    mode="lines+markers+text", line=dict(color="#F5B544", width=3),
-    marker=dict(size=10),
-    text=[f"{g * 100:.2f}%" for g in cmarg], textposition="top center",
-    textfont=dict(color="#F5B544", size=11),
+dcfig.add_trace(go.Scatter(
+    x=dx, y=dg, name="Маржинальность",
+    mode="lines+markers", line=dict(color="#F5B544", width=2),
+    marker=dict(size=6),
     hovertemplate="<b>%{x}</b><br>Маржинальность: %{y:.2f}%<extra></extra>",
 ), secondary_y=True)
-style_plotly_2d(cfig, height=440)
-cfig.update_layout(legend=dict(orientation="h", y=1.12), xaxis=dict(showgrid=False),
-                   shapes=col_separators(len(cnames)))
-cfig.update_yaxes(title_text="Оборот, $", secondary_y=False)
-cfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False, secondary_y=True)
-st.plotly_chart(cfig, use_container_width=True, config={"displayModeBar": False})
+style_plotly_2d(dcfig, height=440)
+dcfig.update_layout(legend=dict(orientation="h", y=1.12),
+                    xaxis=dict(showgrid=False, type="category", tickangle=-45))
+dcfig.update_yaxes(title_text="Оборот, $", secondary_y=False)
+dcfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False, secondary_y=True)
+st.plotly_chart(dcfig, use_container_width=True, config={"displayModeBar": False})
+st.caption("🟢 рост оборота ко вчера · 🔴 спад · насыщеннее = сильнее изменение. "
+           "Значения по дням — в подсказке при наведении (на ~30 столбцах подписи наложились бы).")
 chart_card_close()
 
 # ===== Тепловая карта: бизнес-линии × месяцы (оборот) =====
