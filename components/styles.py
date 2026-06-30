@@ -76,6 +76,14 @@ _CSS = """
     }
     [data-testid="stSidebarNav"] ul li:first-child a[aria-current="page"]::after { color: #FFFFFF; }
 
+    /* Последний пункт (Сегменты) — пока в разработке: зачёркнуто + «(в работе)» */
+    [data-testid="stSidebarNav"] ul li:last-child a span { display: none; }
+    [data-testid="stSidebarNav"] ul li:last-child a::after {
+        content: "С̶е̶г̶м̶е̶н̶т̶ы̶ (в работе)";
+        font-weight: 600;
+        color: #8A90B8;
+    }
+
     /* ===== Заголовки ===== */
     h1, h2, h3, h4 { color: #F2F3FA; letter-spacing: -0.02em; }
     h1 { font-weight: 700; }
