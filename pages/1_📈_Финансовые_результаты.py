@@ -378,7 +378,7 @@ else:
         textfont=dict(size=14, color="#0A0E20"),
         hovertemplate="<b>%{label}</b><br>%{customdata}<br>доля %{percentRoot:.2%}<extra></extra>"))
     # separators=", " → десятичная запятая (доля «80,33%»), тысячи — пробел
-    fig.update_layout(height=440, margin=dict(l=6, r=6, t=6, b=6),
+    fig.update_layout(height=440, margin=dict(l=6, r=6, t=6, b=28),
                       paper_bgcolor="rgba(0,0,0,0)", separators=", ",
                       uniformtext=dict(minsize=9, mode="show"),
                       hoverlabel=dict(bgcolor="#1B2247", font_size=13,
