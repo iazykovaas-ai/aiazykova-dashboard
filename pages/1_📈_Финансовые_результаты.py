@@ -29,9 +29,20 @@ hero(f"📈 Финансовые результаты · {TARGET_YEAR}",
 # ===== Переключатель периода =====
 st.markdown("##### 📅 Период")
 col_from, col_to = st.columns(2)
+# Запоминаем последний выбранный период в URL (?pf=&pt=) — переживает обновление страницы
+
+def _qp_int(key, default):
+    try:
+        return int(st.query_params.get(key, default))
+    except (TypeError, ValueError):
+        return default
+
+
+if "period_from" not in st.session_state:
+    st.session_state["period_from"] = _qp_int("pf", 1)
+if "period_to" not in st.session_state:
+    st.session_state["period_to"] = _qp_int("pt", 1)
 with col_from:
-    st.session_state.setdefault("period_from", 1)   # при новой загрузке — Январь
-    st.session_state.setdefault("period_to", 1)
     from_m = st.selectbox(
         "С месяца", list(range(1, 13)),
         format_func=lambda x: MONTH_NAMES_RU[x - 1],
@@ -45,6 +56,7 @@ with col_to:
     )
 if from_m > to_m:
     from_m, to_m = to_m, from_m  # тихо меняем местами, если перепутаны
+st.query_params["pf"], st.query_params["pt"] = str(from_m), str(to_m)
 
 # Подпись текущего периода для заголовков
 if from_m == to_m:
@@ -209,9 +221,9 @@ with tab_alt:
         # Software & IT = лаванда, Marketing = мята, Personnel = персик,
         # G&A = роза, Consulting = небо, Legal = ваниль, Other = сирень.
         # Прямые расходы и Налог — отдельные цвета (их нет на OPEX-графике).
-        cost_labels = ["Прямые расходы", "ПО и ИТ", "Маркетинг", "Персонал",
-                       "Общехоз. и адм.", "Консалтинг", "Юр. и комплаенс",
-                       "Прочие операц.", "Налог"]
+        cost_labels = ["Прямые расходы", "IT расходы", "Маркетинг", "Расходы на персонал",
+                       "Общехоз. и админ. расходы", "Консалтинг и аудит", "Комплаенс",
+                       "Прочие операционные расходы", "Налог"]
         cost_values = [abs(direct_costs),
                        abs(fv("opex_software_it")),
                        abs(fv("opex_marketing")),
@@ -312,13 +324,13 @@ _MB = {"displayModeBar": True, "displaylogo": False,
 
 # --- Структура OPEX (бары / treemap) ---
 opex_groups = [
-    ("opex_software_it",  "ПО и ИТ",          "Расходы на ПО и ИТ",          "#8B7BF0"),
-    ("opex_marketing",    "Маркетинг",        "Маркетинг и реклама",         "#2FD9A6"),
-    ("opex_personnel",    "Персонал",         "Расходы на персонал",         "#F5B544"),
-    ("opex_ga",           "Общехоз. и адм.",  "Общехоз. и админ. расходы",   "#E94FA1"),
-    ("opex_consulting",   "Консалтинг",       "Консалтинг и аудит",          "#4A7DFF"),
-    ("opex_legal",        "Юр. и комплаенс",  "Юридические и комплаенс",     "#3FE0C5"),
-    ("opex_other",        "Прочие операц.",   "Прочие операционные расходы", "#FF8AC4"),
+    ("opex_software_it",  "IT расходы",                  "Расходы на ПО и ИТ",          "#8B7BF0"),
+    ("opex_marketing",    "Маркетинг",                   "Маркетинг и реклама",         "#2FD9A6"),
+    ("opex_personnel",    "Расходы на персонал",         "Зарплаты, премии, налоги ФОТ", "#F5B544"),
+    ("opex_ga",           "Общехоз. и админ. расходы",   "Аренда, связь, хозрасходы",   "#E94FA1"),
+    ("opex_consulting",   "Консалтинг и аудит",          "Консалтинг и аудит",          "#4A7DFF"),
+    ("opex_legal",        "Комплаенс",                   "Юридические и комплаенс",     "#3FE0C5"),
+    ("opex_other",        "Прочие операционные расходы", "Прочие операционные расходы", "#FF8AC4"),
 ]
 ovals = [(le, lr, abs(fv(k)), c) for k, le, lr, c in opex_groups]
 
