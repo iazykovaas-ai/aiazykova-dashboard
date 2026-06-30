@@ -271,6 +271,24 @@ def mon_line_breakdown(rows: list[list[str]], metric: str, month: int) -> dict[s
     return out
 
 
+def mon_line_daily(rows: list[list[str]], metric: str, line: str,
+                   month: int) -> list[tuple[_dt.date, float]]:
+    """Дневной ряд метрики для ОДНОЙ бизнес-линии за месяц: [(дата, значение), ...]."""
+    if metric not in MON_LINE_BLOCKS:
+        return []
+    block = MON_LINE_BLOCKS[metric]
+    header = _find_row(rows, block["header"], block["label"])
+    target = None
+    for r in range(header + 1, header + len(MON_LINES) + 3):
+        if _cell(rows, r, 3).strip() == line:
+            target = r
+            break
+    cols = [(c, d) for c, d in mon_daily_columns(rows) if d.month == month]
+    if target is None:
+        return [(d, 0.0) for _, d in cols]
+    return [(d, parse_ru_number(_cell(rows, target, c))) for c, d in cols]
+
+
 # ============= СЕГМЕНТЫ: бюджет (2026 Ребюджет) / факт (Факт - прогноз) =============
 from config import (SEG_BUDGET_COL, SEG_FACT_COL, SEG_MARGIN_ROWS,  # noqa: E402
                     SEG_MARGIN_TOTAL_ROW)

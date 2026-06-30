@@ -17,8 +17,8 @@ from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close, m
 from config import (MON_LINE_BLOCKS, MON_LINES, MON_METRIC_LABELS, MON_MONTH_TOTAL_COLS,
                     MON_SUMMARY_ROWS, MONTH_NAMES_RU)
 from data.sheets_loader import (load_monitoring_raw, mon_line_breakdown,
-                                mon_months_available, mon_summary_daily,
-                                mon_summary_monthly)
+                                mon_line_daily, mon_months_available,
+                                mon_summary_daily, mon_summary_monthly)
 
 st.set_page_config(page_title="Мониторинг", page_icon="📅", layout="wide")
 apply()
@@ -214,10 +214,18 @@ mm = [m for m in months if m in MON_MONTH_TOTAL_COLS]
 cnames = [MONTH_NAMES_RU[m - 1] for m in mm]   # подписи месяцев для тепловой карты
 
 # ===== Комбо: оборот (бары) + маржинальность (линия) по ДНЯМ =====
+combo_seg = st.selectbox("Сегмент для графика по дням", ["Все сегменты"] + MON_LINES,
+                         key="mon_combo_seg")
+if combo_seg == "Все сегменты":
+    dturn = mon_summary_daily(rows, "turnover", month)
+    dmarg = dict(mon_summary_daily(rows, "marginality", month))
+    _seg_note = "все сегменты · включая Other / Agent / Gold"
+else:
+    dturn = mon_line_daily(rows, "turnover", combo_seg, month)
+    dmarg = dict(mon_line_daily(rows, "marginality", combo_seg, month))
+    _seg_note = f"сегмент: {combo_seg} · без Other / Agent / Gold"
 chart_card_open(f"Оборот и маржинальность по дням · {month_name}",
-                "бары — оборот ($), линия — маржинальность (%) · включая Other / Agent / Gold")
-dturn = mon_summary_daily(rows, "turnover", month)
-dmarg = dict(mon_summary_daily(rows, "marginality", month))
+                f"бары — оборот ($), линия — маржинальность (%) · {_seg_note}")
 dx = [d.strftime("%d.%m") for d, _ in dturn]
 dt = [v for _, v in dturn]
 dg = [dmarg.get(d, 0.0) * 100 for d, _ in dturn]
