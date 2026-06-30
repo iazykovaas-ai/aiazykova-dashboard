@@ -254,15 +254,27 @@ style_plotly_2d(dcfig, height=520)
 dcfig.update_layout(legend=dict(orientation="h", y=1.12), bargap=0.3,
                     xaxis=dict(showgrid=False, type="category", tickangle=-45))
 # запас сверху → бары короче, подписи влезают; метки оси — авто (k/M под масштаб месяца)
+# Диапазоны осей с ВЫРОВНЕННЫМ нулём: ноль оборота и ноль маржи — на одной линии.
+# Обе оси могут уходить в минус (оборот — при возвратах, маржа — при убытке).
+_t_hi = (max(0.0, max(dt)) if dt else 1.0) * 1.25 or 1.0
+_g_hi = (max(0.0, max(dg)) if dg else 1.0) * 1.30 or 1.0
+_t_lo_need = (min(0.0, min(dt)) if dt else 0.0) * 1.2     # требуемый минус по обороту
+_g_lo_need = (min(0.0, min(dg)) if dg else 0.0) * 1.2     # требуемый минус по марже
+
+
+def _zfrac(hi, lo):
+    return (-lo) / (hi - lo) if (hi - lo) else 0.0
+
+
+# доля оси ниже нуля — общая для обеих (берём максимум из требуемых)
+_z = max(_zfrac(_t_hi, _t_lo_need), _zfrac(_g_hi, _g_lo_need))
+_t_lo = -_z * _t_hi / (1 - _z) if _z > 0 else 0.0
+_g_lo = -_z * _g_hi / (1 - _z) if _z > 0 else 0.0
+_zl = dict(zeroline=True, zerolinecolor="rgba(255,255,255,0.25)", zerolinewidth=1)
 dcfig.update_yaxes(title_text="Оборот, $", tickformat="~s", showgrid=True,
-                   range=[0, (max(dt) if dt else 1) * 1.25], secondary_y=False)
-# ось маржи: пускаем ниже 0, если есть отрицательные дни, и рисуем нулевую линию
-_gmin = min(dg) if dg else 0
-_glow = _gmin * 1.2 if _gmin < 0 else 0
+                   range=[_t_lo, _t_hi], **_zl, secondary_y=False)
 dcfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False,
-                   range=[_glow, (max(dg) if dg else 1) * 1.3],
-                   zeroline=True, zerolinecolor="rgba(255,255,255,0.25)",
-                   zerolinewidth=1, secondary_y=True)
+                   range=[_g_lo, _g_hi], **_zl, secondary_y=True)
 st.plotly_chart(dcfig, use_container_width=True, config={"displayModeBar": False})
 st.caption("🟢 рост оборота ко вчера · 🔴 спад · насыщеннее = сильнее изменение. "
            "Подписи: оборот — над столбцами, маржинальность — над точками. "
