@@ -9,6 +9,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from components.assistant import render_assistant
+from components.glossary import PAGE_FIN, render_abbr_expander
 from components.kpi import fmt_kusd, fmt_pct
 from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
                                chart_card_open, col_separators, cuboid_mesh, gauge, hero,

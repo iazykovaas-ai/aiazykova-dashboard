@@ -135,6 +135,21 @@ MON_LINE_BLOCKS = {
 MON_LINES = ["Bank opt_import", "Bank import", "Direct opt_import", "Direct import",
              "Exchange", "Special", "Sber import", "Sber export", "Export", "Partner", "Dealing"]
 
+# Русские подписи бизнес-линий для отображения (поиск строк в листе — по англ. MON_LINES!)
+MON_LINE_LABELS_RU = {
+    "Bank opt_import":   "Опт. банки",
+    "Bank import":       "Банк. импорт",
+    "Direct opt_import": "Опт. клиенты",
+    "Direct import":     "Прямой импорт",
+    "Exchange":          "Конвертация",
+    "Special":           "Спец клиенты",
+    "Sber import":       "Sber импорт",
+    "Sber export":       "Sber экспорт",
+    "Export":            "Экспорт",
+    "Partner":           "Партнёры",
+    "Dealing":           "Дилинг",
+}
+
 # Отображаемые имена метрик мониторинга (для переключателя на странице).
 MON_METRIC_LABELS = {
     "turnover":        "Оборот",
