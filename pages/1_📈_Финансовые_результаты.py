@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -11,8 +12,8 @@ from components.assistant import render_assistant
 from components.kpi import fmt_kusd, fmt_pct
 from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
                                chart_card_open, col_separators, cuboid_mesh, gauge, hero,
-                               row_separators, sparkline, style_plotly_2d, style_plotly_3d,
-                               wrap_label)
+                               mom_colors, row_separators, sparkline, style_plotly_2d,
+                               style_plotly_3d, wrap_label)
 from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT,
                     TARGET_MONTH, TARGET_YEAR)
 from data.sheets_loader import load_pl_global_raw, pl_series, pl_value
@@ -466,6 +467,47 @@ st.plotly_chart(fig, use_container_width=True, config=_MB)
 if dyn_view == "Бары":
     st.caption("🟢 рост · 🔴 снижение к пред. месяцу · насыщеннее = сильнее изменение · первый месяц базовый")
 st.caption("🔍 Увеличили график? Кнопка 🏠 в панели сверху справа (или двойной клик) — вернуть масштаб.")
+chart_card_close()
+
+# ===== Комбо: оборот (бары) + маржинальность (линия) по месяцам =====
+chart_card_open(f"Оборот и маржинальность по месяцам · {TARGET_YEAR}",
+                "бары — оборот (млн $), линия — маржинальность (валовая прибыль / оборот) · PL GLOBAL")
+cmonths, cturn_m, cmarg = [], [], []
+for _m in range(1, 13):
+    _t = pl_value(rows, "turnover", _m, "fact", TARGET_YEAR)
+    if _t <= 0:
+        continue
+    _g = pl_value(rows, "gross_profit", _m, "fact", TARGET_YEAR)
+    cmonths.append(MONTH_NAMES_SHORT[_m - 1])
+    cturn_m.append(_t / 1000)            # оборот в млн $ (в PL он в тыс. $)
+    cmarg.append(_g / _t * 100)          # маржинальность, %
+# цвет оборота по динамике к пред. месяцу: рост — зелёный, спад — красный, яркость ~ силе
+_cbar = mom_colors(cturn_m, "#36C5F0")[0]
+cfig = make_subplots(specs=[[{"secondary_y": True}]])
+cfig.add_trace(go.Bar(
+    x=cmonths, y=cturn_m, name="Оборот",
+    marker=dict(color=_cbar, line=dict(width=0)),
+    text=[f"{v:.1f}".replace(".", ",") for v in cturn_m],
+    textposition="inside", insidetextanchor="middle",
+    textfont=dict(color="#0A0E20", size=12),
+    hovertemplate="<b>%{x}</b><br>Оборот: %{y:.1f} млн $<extra></extra>",
+), secondary_y=False)
+cfig.add_trace(go.Scatter(
+    x=cmonths, y=cmarg, name="Маржинальность",
+    mode="lines+markers+text", line=dict(color="#F5B544", width=3),
+    marker=dict(size=10),
+    text=[f"{v:.2f}".replace(".", ",") + "%" for v in cmarg], textposition="top center",
+    textfont=dict(color="#F5B544", size=11),
+    hovertemplate="<b>%{x}</b><br>Маржинальность: %{y:.2f}%<extra></extra>",
+), secondary_y=True)
+style_plotly_2d(cfig, height=440)
+cfig.update_layout(legend=dict(orientation="h", y=1.12), xaxis=dict(showgrid=False),
+                   shapes=col_separators(len(cmonths)), separators=", ")
+cfig.update_yaxes(title_text="Оборот, млн $", secondary_y=False)
+cfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False, secondary_y=True)
+st.plotly_chart(cfig, use_container_width=True, config=_MB)
+st.caption("🟢 рост оборота к пред. месяцу · 🔴 спад · насыщеннее = сильнее изменение. "
+           "Оборот подписан внутри столбцов, маржинальность — над точками.")
 chart_card_close()
 
 # ===== Полная P&L таблица =====
