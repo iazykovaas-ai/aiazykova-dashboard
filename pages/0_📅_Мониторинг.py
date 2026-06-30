@@ -64,15 +64,13 @@ with col_metric:
     metric = st.selectbox("Метрика", metric_keys,
                           format_func=lambda k: MON_METRIC_LABELS[k])
 
-st.caption("ℹ️ Дневной ряд — всё, **включая** Other / Agent / Gold. "
-           "Месячные итоги и разбивка по линиям — **без** Other / Agent / Gold "
-           "(поэтому сумма по дням больше месячного итога).")
-
 metric_fmt = MON_SUMMARY_ROWS[metric]["fmt"]
 month_name = MONTH_NAMES_RU[month - 1]
 prev_month = month - 1 if (month - 1) in months else None
 
 # ===== KPI-строка: сводка за месяц =====
+st.markdown("##### 📦 Сводка за месяц")
+st.caption("месячные итоги · **без** Other / Agent / Gold")
 KPI_METRICS = ["turnover", "marginal_profit", "marginality", "avg_check", "deals"]
 cols = st.columns(len(KPI_METRICS))
 for col, key in zip(cols, KPI_METRICS):
