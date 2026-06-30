@@ -227,7 +227,9 @@ _dcolors = mom_colors(dt, "#36C5F0")[0]
 dcfig.add_trace(go.Bar(
     x=dx, y=dt, name="Оборот",
     marker=dict(color=_dcolors, line=dict(width=0)),
-    text=[_k(v) for v in dt], textposition="outside", textangle=0,
+    # короткая подпись в млн (4,9M) — влезает горизонтально; точное значение (k) — в подсказке
+    text=[f"{v / 1e6:.1f}".replace(".", ",") + "M" for v in dt],
+    textposition="outside", textangle=0,
     textfont=dict(color=PALETTE["ink"], size=10), cliponaxis=False,
     customdata=[_k(v) for v in dt],
     hovertemplate="<b>%{x}</b><br>Оборот: %{customdata}<extra></extra>",
@@ -276,14 +278,21 @@ st.plotly_chart(hfig, use_container_width=True, config={"displayModeBar": False}
 chart_card_close()
 
 # ===== Таблица-светофор по сегментам =====
-chart_card_open(f"Светофор по сегментам · {month_name}",
-                "без Other / Agent / Gold · 🟢 маржа выше средней по месяцу · 🟡 половина · 🔴 ниже")
 seg_turn = mon_line_breakdown(rows, "turnover", month)
 seg_marg = mon_line_breakdown(rows, "marginality", month)
+# База сравнения — средняя маржинальность за месяц. Если в листе её нет/0
+# (месяц не закрыт) — берём среднюю по сегментам, иначе светофор «весь зелёный».
 avg_marg = mon_summary_monthly(rows, "marginality", month)
-if math.isnan(avg_marg):
+_base_note = "средняя за месяц"
+if math.isnan(avg_marg) or avg_marg <= 0:
     vals = [v for v in seg_marg.values() if v]
     avg_marg = sum(vals) / len(vals) if vals else 0.0
+    _base_note = "средняя по сегментам (в листе средняя за месяц пустая)"
+chart_card_open(f"Светофор по сегментам · {month_name}",
+                "маржинальность сегмента к средней за месяц · без Other / Agent / Gold")
+st.caption(
+    f"🟢 ≥ средней  ·  🟡 от ½ до средней  ·  🔴 ниже ½ средней.  "
+    f"База сравнения: **{avg_marg * 100:.2f}%** ({_base_note}).")
 seg_rows = []
 for line in MON_LINES:
     mg = seg_marg.get(line, 0.0)
