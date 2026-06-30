@@ -55,13 +55,18 @@ if not months:
     st.stop()
 
 # ===== Выбор месяца и метрики =====
-# по умолчанию — последний ЗАКРЫТЫЙ месяц (тот, у которого есть колонка итога)
+# По умолчанию — запомненный в URL месяц (?mm=), иначе последний ЗАКРЫТЫЙ (с колонкой итога)
 closed = [m for m in months if m in MON_MONTH_TOTAL_COLS]
-default_month = closed[-1] if closed else months[-1]
+try:
+    _qpm = int(st.query_params.get("mm", 0))
+except (TypeError, ValueError):
+    _qpm = 0
+default_month = _qpm if _qpm in months else (closed[-1] if closed else months[-1])
 col_m, col_metric = st.columns([1, 2])
 with col_m:
     month = st.selectbox("Месяц", months, index=months.index(default_month),
-                         format_func=lambda m: MONTH_NAMES_RU[m - 1])
+                         format_func=lambda m: MONTH_NAMES_RU[m - 1], key="mon_month")
+st.query_params["mm"] = str(month)
 with col_metric:
     metric_keys = [k for k in MON_METRIC_LABELS if k != "active_clients"]
     metric = st.selectbox("Метрика", metric_keys,
