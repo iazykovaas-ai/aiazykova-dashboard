@@ -76,12 +76,11 @@ _CSS = """
     }
     [data-testid="stSidebarNav"] ul li:first-child a[aria-current="page"]::after { color: #FFFFFF; }
 
-    /* Последний пункт (Сегменты) — пока в разработке: зачёркнуто + «(в работе)» */
-    [data-testid="stSidebarNav"] ul li:last-child a span { display: none; }
+    /* Последний пункт (Сегменты) — пока в разработке: зачёркиваем родной текст + «(в работе)» */
+    [data-testid="stSidebarNav"] ul li:last-child a span { text-decoration: line-through; }
     [data-testid="stSidebarNav"] ul li:last-child a::after {
-        content: "С̶е̶г̶м̶е̶н̶т̶ы̶ (в работе)";
-        font-weight: 500;
-        color: #AEB4D8;
+        content: " (в работе)";
+        opacity: 0.75;
     }
 
     /* ===== Заголовки ===== */
