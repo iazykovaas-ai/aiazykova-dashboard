@@ -249,11 +249,12 @@ with tab_alt:
         fig = go.Figure(go.Pie(
             labels=cost_labels, values=cost_values, hole=0.6,
             marker=dict(colors=cost_pal, line=dict(color="white", width=2)),
-            textinfo="percent",
-            hovertemplate="<b>%{label}</b><br>%{value:,.0f} k$<br>%{percent}<extra></extra>",
+            texttemplate="%{percent:.2%}",
+            hovertemplate="<b>%{label}</b><br>%{value:,.0f} k$<br>доля %{percent:.2%}<extra></extra>",
         ))
         style_plotly_2d(fig, height=440)
-        fig.update_layout(showlegend=True,
+        # separators=", " → десятичная запятая (доля «30,90%»)
+        fig.update_layout(showlegend=True, separators=", ",
                           legend=dict(orientation="v", y=0.5, x=1.02,
                                       font=dict(size=11)))
         st.plotly_chart(fig, use_container_width=True,
