@@ -80,8 +80,8 @@ _CSS = """
     [data-testid="stSidebarNav"] ul li:last-child a span { display: none; }
     [data-testid="stSidebarNav"] ul li:last-child a::after {
         content: "С̶е̶г̶м̶е̶н̶т̶ы̶ (в работе)";
-        font-weight: 600;
-        color: #8A90B8;
+        font-weight: 500;
+        color: #AEB4D8;
     }
 
     /* ===== Заголовки ===== */
