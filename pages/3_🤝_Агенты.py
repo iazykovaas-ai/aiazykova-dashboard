@@ -99,10 +99,10 @@ st.markdown("")
 
 # ===== Топ агентов по выбранной метрике =====
 METRIC_CHOICES = {
-    "Маржа, USD": ("margin", "money", "#2FD9A6"),
-    "Оборот, USD": ("turnover", "money", "#36C5F0"),
-    "Наша комиссия, USD": ("our_fee", "money", "#8B7BF0"),
-    "Выплачено агенту, USD": ("payout", "money", "#F5B544"),
+    "Маржа": ("margin", "money", "#2FD9A6"),
+    "Оборот": ("turnover", "money", "#36C5F0"),
+    "Наша комиссия": ("our_fee", "money", "#8B7BF0"),
+    "Выплачено агенту": ("payout", "money", "#F5B544"),
     "Кол-во сделок": ("deals", "int", "#E94FA1"),
 }
 chart_card_open("🏆 Рейтинг агентов", "отсортировано по выбранной метрике · тыс. USD, кроме сделок")
@@ -118,7 +118,7 @@ else:
     xvals = top[col_key] / 1000 if is_money else top[col_key]
     if is_money:
         texts = [f"{v/1000:,.0f}".replace(",", " ") for v in top[col_key]]
-        hover = "<b>%{y}</b><br>" + metric_name + ": %{customdata:,.0f}<extra></extra>"
+        hover = "<b>%{y}</b><br>" + metric_name + ": %{customdata:,.0f} $<extra></extra>"
     else:
         texts = [f"{int(v)}" for v in top[col_key]]
         hover = "<b>%{y}</b><br>" + metric_name + ": %{x}<extra></extra>"
