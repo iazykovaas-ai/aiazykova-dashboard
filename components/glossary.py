@@ -38,6 +38,12 @@ ABBR: dict[str, tuple[str, str]] = {
                     "отношение прибыли к обороту, % — сколько зарабатываем с каждого $ оборота"),
     "MP": ("Маржинальная прибыль", "прибыль от сделок до операционных расходов"),
     "avgcheck": ("Средний чек", "средний оборот на одну сделку за период"),
+    "clientrate": ("Тариф клиента, %",
+                   "ставка комиссии, которую платит клиент = Наша комиссия ÷ Оборот"),
+    "ourfee": ("Наша комиссия, USD",
+               "комиссия, которую агентство берёт с клиента по сделкам агента"),
+    "agentfee": ("Комиссия агента",
+                 "вознаграждение, которое агентство выплачивает агенту (расход, со знаком «−»)"),
 }
 
 # Какие термины показывать на каждой странице (только те, что реально встречаются).
@@ -47,6 +53,8 @@ PAGE_FIN = ["Revenue", "GP", "OPEX", "GA", "FX", "OperatingProfit", "PBT", "Net"
 PAGE_DEV = ["GP", "OPEX", "PBT", "Net", "Waterfall", "vs", "nm", "pp", "units", "PL"]
 PAGE_MON = ["MoM", "OAG", "marginality", "MP", "avgcheck", "Turnover", "units"]
 PAGE_SEG = ["marginality", "MP", "avgcheck", "Turnover", "units"]
+PAGE_AGENTS = ["Turnover", "MP", "marginality", "clientrate", "ourfee", "agentfee",
+               "YTD", "units"]
 
 
 def render_abbr_expander(keys: list[str], title: str = "ℹ️ Расшифровка аббревиатур") -> None:
