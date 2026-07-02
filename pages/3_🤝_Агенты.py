@@ -142,7 +142,7 @@ else:
 chart_card_close()
 
 # ===== Маржинальность по агентам =====
-chart_card_open("💹 Маржинальность по агентам",
+chart_card_open("💹 Маржинальность по клиентам агентов",
                 "за период · зелёный — прибыльно, красный — убыточно; оборот и маржа — в подсказке")
 sc = df[df["turnover"] > 0].copy().sort_values("marginality", ascending=True)
 if sc.empty:
