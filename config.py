@@ -15,6 +15,9 @@ MONITORING_SPREADSHEET_ID = "16WYf82yG19ILCX1KfEgLuoVn-WToDSAQtXW6p2cDIgE"
 # Книга «ИИ GLOBAL Бизнес-Модель» — бюджет/факт по сегментам
 BUSINESS_MODEL_SPREADSHEET_ID = "1jI6__M_o-i4OvzhGntjgGLViAmFVzWYqesZrcNu8E7k"
 
+# Книга «Агенты» — лист «Свод по агентам» (доходность агентов помесячно)
+AGENTS_SPREADSHEET_ID = "1EEHoHBZvmMX60zAw6d6RmpFNAZn20e0h8OAfdPeS6aI"
+
 # Последний закрытый месяц для дашборда (1=Jan ... 12=Dec)
 TARGET_MONTH = 4   # Apr
 TARGET_YEAR = 2026
@@ -31,6 +34,7 @@ SHEETS = {
                    "worksheet": "Мониторинг по дате закрытия сделки"},
     "rebudget": {"spreadsheet_id": BUSINESS_MODEL_SPREADSHEET_ID, "worksheet": "2026 Ребюджет"},
     "fact_forecast": {"spreadsheet_id": BUSINESS_MODEL_SPREADSHEET_ID, "worksheet": "Факт - прогноз"},
+    "agents_svod": {"spreadsheet_id": AGENTS_SPREADSHEET_ID, "worksheet": "Свод по агентам"},
 }
 
 CACHE_TTL_SECONDS = 300
@@ -213,4 +217,25 @@ PL_FULL_METRICS = [
     ("Прибыль до налогообложения (PBT)", [173], "money"),
     ("Налог на прибыль", [174], "money"),
     ("Чистая прибыль", [177], "money"),
+]
+
+# ============= АГЕНТЫ (лист «Свод по агентам») =============
+# Строка 1 — месяцы (каждый блок = 8 колонок), строка 2 — подзаголовки метрик,
+# данные с строки 3 до первой пустой ячейки в колонке A (имя агента).
+AGENTS_DATA_START_ROW = 3
+AGENTS_NAME_COL = 1
+AGENTS_MONTH_BLOCK = 8          # колонок на один месяц
+AGENTS_FIRST_MONTH_COL = 2      # колонка B — «Оборот» января
+
+# Метрики внутри месячного блока: (ключ, смещение 0-базовое, подпись, формат).
+# money/int суммируются по периоду; проценты пересчитываются из абсолютных.
+AGENT_METRICS = [
+    ("turnover",      0, "Оборот",              "money"),
+    ("deals",         1, "Кол-во сделок",       "int"),
+    ("margin",        2, "Маржа, USD",          "money"),
+    ("client_rate",   3, "Тариф клиента, %",    "pct"),
+    ("marginality",   4, "Маржинальность, %",   "pct"),
+    ("agent_fee_pct", 5, "Комиссия агента, %",  "pct"),
+    ("our_fee",       6, "Наша комиссия, USD",  "money"),
+    ("agent_fee",     7, "Комиссия агента, USD", "money"),
 ]
