@@ -104,7 +104,7 @@ METRIC_CHOICES = {
     "Выплачено агенту": ("payout", "money", "#F5B544"),
     "Кол-во сделок": ("deals", "int", "#E94FA1"),
 }
-chart_card_open("🏆 Рейтинг агентов", "отсортировано по выбранной метрике · тыс. USD, кроме сделок")
+chart_card_open("🏆 Рейтинг агентов", "отсортировано по выбранной метрике · USD (кроме сделок)")
 metric_name = st.radio("Метрика", list(METRIC_CHOICES), horizontal=True,
                        key="agents_rank_metric", label_visibility="collapsed")
 col_key, fmt, base_color = METRIC_CHOICES[metric_name]
@@ -114,10 +114,10 @@ if top.empty:
     st.caption("Нет данных за период.")
 else:
     is_money = fmt == "money"
-    xvals = top[col_key] / 1000 if is_money else top[col_key]
+    xvals = top[col_key]
     if is_money:
-        texts = [f"{v/1000:,.0f}".replace(",", " ") for v in top[col_key]]
-        hover = "<b>%{y}</b><br>" + metric_name + ": %{customdata:,.0f} $<extra></extra>"
+        texts = [f"{v:,.0f}".replace(",", " ") for v in top[col_key]]
+        hover = "<b>%{y}</b><br>" + metric_name + ": %{x:,.0f} $<extra></extra>"
     else:
         texts = [f"{int(v)}" for v in top[col_key]]
         hover = "<b>%{y}</b><br>" + metric_name + ": %{x}<extra></extra>"
@@ -132,64 +132,82 @@ else:
     ))
     style_plotly_2d(fig, height=max(360, 26 * len(top)))
     fig.update_layout(
-        xaxis=dict(showgrid=True, showticklabels=True, zeroline=True,
+        xaxis=dict(showgrid=True, showticklabels=not is_money, zeroline=True,
                    tickfont=dict(size=11)),
         yaxis=dict(showgrid=False, tickfont=dict(size=12)),
         shapes=row_separators(len(top)),
-        margin=dict(l=10, r=60, t=10, b=10),
+        margin=dict(l=10, r=90, t=10, b=10),
     )
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 chart_card_close()
 
-# ===== Оборот × Маржинальность (пузыри) =====
-chart_card_open("💹 Оборот и маржинальность",
-                "размер пузыря = |Маржа|; выше нуля — прибыльно, ниже — убыточно")
-sc = df[df["turnover"] > 0].copy()
+# ===== Маржинальность по агентам =====
+chart_card_open("💹 Маржинальность по агентам",
+                "за период · зелёный — прибыльно, красный — убыточно; оборот и маржа — в подсказке")
+sc = df[df["turnover"] > 0].copy().sort_values("marginality", ascending=True)
 if sc.empty:
     st.caption("Нет данных за период.")
 else:
-    sizeref = 2.0 * sc["margin"].abs().max() / (44.0 ** 2) if sc["margin"].abs().max() else 1
-    pt_colors = [PALETTE["success"] if v >= 0 else PALETTE["danger"] for v in sc["marginality"]]
-    # подписи — крупнейшим по обороту, чтобы не загромождать
-    thr = sc["turnover"].quantile(0.6)
-    labels = [a if t >= thr else "" for a, t in zip(sc["Агент"], sc["turnover"])]
-    fig = go.Figure(go.Scatter(
-        x=sc["turnover"], y=sc["marginality"] * 100,
-        mode="markers+text",
-        text=labels, textposition="top center",
-        textfont=dict(color=PALETTE["muted"], size=10),
-        marker=dict(size=sc["margin"].abs(), sizemode="area", sizeref=sizeref,
-                    sizemin=6, color=pt_colors, line=dict(width=1, color="rgba(255,255,255,0.35)"),
-                    opacity=0.85),
-        customdata=sc[["margin", "deals"]],
-        hovertemplate=("<b>%{text}</b><br>Оборот: %{x:,.0f} $<br>"
-                       "Маржинальность: %{y:.2f}%<br>Маржа: %{customdata[0]:,.0f} $<br>"
-                       "Сделок: %{customdata[1]}<extra></extra>"),
+    xv = sc["marginality"] * 100
+    colors = [PALETTE["success"] if v >= 0 else PALETTE["danger"] for v in xv]
+    fig = go.Figure(go.Bar(
+        x=xv, y=[wrap_label(a, 16) for a in sc["Агент"]], orientation="h",
+        marker=dict(color=colors, line=dict(width=0)),
+        text=[f"{v:.2f}%".replace(".", ",") for v in xv],
+        textposition="outside", textfont=dict(color=PALETTE["ink"], size=11),
+        customdata=sc[["turnover", "margin", "deals"]],
+        hovertemplate=("<b>%{y}</b><br>Маржинальность: %{x:.2f}%<br>"
+                       "Оборот: %{customdata[0]:,.0f} $<br>"
+                       "Маржа: %{customdata[1]:,.0f} $<br>"
+                       "Сделок: %{customdata[2]}<extra></extra>"),
     ))
-    style_plotly_2d(fig, height=440)
+    style_plotly_2d(fig, height=max(360, 26 * len(sc)))
     fig.update_layout(
-        xaxis=dict(title="Оборот, USD (лог. шкала)", type="log", showgrid=True),
-        yaxis=dict(title="Маржинальность, %", zeroline=True,
-                   zerolinecolor="rgba(255,92,122,0.55)", zerolinewidth=1),
-        margin=dict(l=10, r=20, t=10, b=40),
+        xaxis=dict(title="Маржинальность, %", showgrid=True, zeroline=True,
+                   ticksuffix="%", zerolinecolor="rgba(255,92,122,0.55)", zerolinewidth=1),
+        yaxis=dict(showgrid=False, tickfont=dict(size=12)),
+        shapes=row_separators(len(sc)),
+        margin=dict(l=10, r=70, t=10, b=30),
     )
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 chart_card_close()
 
-# ===== Детальная таблица =====
-chart_card_open("📋 Детализация по агентам", period_label)
-tbl = df[["Агент", "turnover", "deals", "margin", "marginality", "client_rate",
-          "our_fee", "agent_fee_pct", "agent_fee"]].copy()
-tbl.columns = ["Агент", "Оборот", "Сделок", "Маржа", "Маржинальность",
-               "Тариф клиента", "Наша комиссия", "Комиссия агента, %", "Комиссия агенту"]
+# ===== Детальная таблица (с «тепловой» заливкой) =====
+chart_card_open("📋 Детализация по агентам",
+                f"{period_label} · Эффективность = маржа ÷ выплата агенту "
+                "(сколько $ маржи на $1 агенту); заливка — от красного (провал) к зелёному")
+tbl = df.copy()
+# Эффективность: сколько маржи приходится на $1 выплаты агенту (n/m, если выплаты нет)
+tbl["efficiency"] = [(m / p) if p > 0 else float("nan")
+                     for m, p in zip(tbl["margin"], tbl["payout"])]
+tbl = tbl[["Агент", "turnover", "deals", "margin", "marginality", "client_rate",
+           "our_fee", "agent_fee_pct", "agent_fee", "efficiency"]]
+tbl.columns = ["Агент", "Оборот", "Сделок", "Маржа", "Маржинальность", "Тариф клиента",
+               "Наша комиссия", "Комиссия агента, %", "Комиссия агенту", "Эффективность"]
 
 
-def _color_val(v):
-    if v > 0:
-        return "color: #2FD9A6;"
-    if v < 0:
-        return "color: #FF5C7A;"
-    return "color: #8A90B8;"
+def _pct(v):
+    return f"{v*100:.2f}%".replace(".", ",")
+
+
+def _eff(v):
+    return "—" if pd.isna(v) else f"{v:.1f}×".replace(".", ",")
+
+
+def _bg_diverging(s):
+    """Заливка ячеек столбца: зелёный (плюс) / красный (минус), яркость ∝ величине."""
+    m = s.abs().max() or 1
+    out = []
+    for v in s:
+        if pd.isna(v) or v == 0:
+            out.append("color:#8A90B8;")
+        elif v > 0:
+            a = 0.14 + 0.34 * min(v / m, 1)
+            out.append(f"background-color: rgba(47,217,166,{a:.2f}); color:#EAFBF4;")
+        else:
+            a = 0.14 + 0.34 * min(abs(v) / m, 1)
+            out.append(f"background-color: rgba(255,92,122,{a:.2f}); color:#FFECEF;")
+    return out
 
 
 styler = (
@@ -197,14 +215,13 @@ styler = (
     .format({
         "Оборот": _m, "Маржа": _m, "Наша комиссия": _m, "Комиссия агенту": _m,
         "Сделок": "{:.0f}",
-        "Маржинальность": lambda v: f"{v*100:.2f}%",
-        "Тариф клиента": lambda v: f"{v*100:.2f}%",
-        "Комиссия агента, %": lambda v: f"{v*100:.2f}%",
+        "Маржинальность": _pct, "Тариф клиента": _pct, "Комиссия агента, %": _pct,
+        "Эффективность": _eff,
     })
-    .map(_color_val, subset=["Маржа", "Маржинальность"])
+    .apply(_bg_diverging, subset=["Маржа", "Маржинальность", "Эффективность"])
 )
 st.dataframe(styler, use_container_width=True, hide_index=True,
-             height=min(560, 44 + 35 * len(tbl)))
+             height=min(600, 44 + 35 * len(tbl)))
 chart_card_close()
 
 # ===== Разбор по одному агенту =====
@@ -223,12 +240,12 @@ else:
     feepct_s = agent_monthly_series(rows, who, "agent_fee_pct")
     turn_s = agent_monthly_series(rows, who, "turnover")
 
-    marg_k = [marg_s[m - 1] / 1000 for m in months]
-    pay_k = [-fee_s[m - 1] / 1000 for m in months]          # выплата агенту (+)
+    marg_v = [marg_s[m - 1] for m in months]                # маржа, USD
+    pay_v = [-fee_s[m - 1] for m in months]                 # выплата агенту, USD (+)
     margness = [margness_s[m - 1] * 100 for m in months]     # маржинальность, %
     feepct = [-feepct_s[m - 1] * 100 for m in months]        # комиссия агента, % (+)
     # доля комиссии агента в марже (только где маржа > 0)
-    share_m = [(pay_k[i] / marg_k[i] * 100) if marg_k[i] > 0 else 0.0
+    share_m = [(pay_v[i] / marg_v[i] * 100) if marg_v[i] > 0 else 0.0
                for i in range(len(months))]
 
     # KPI агента за период
@@ -273,27 +290,27 @@ else:
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
     chart_card_close()
 
-    # --- График 2: маржа vs выплата агенту, USD ---
-    chart_card_open("Маржа и выплата агенту, USD", f"{who} · тыс. USD по месяцам")
+    # --- График 2: маржа vs выплата агенту, USD (полные суммы) ---
+    chart_card_open("Маржа и выплата агенту, USD", f"{who} · USD по месяцам")
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=xs, y=marg_k, name="Маржа", marker_color="#2FD9A6",
-        text=[f"{v:,.0f}".replace(",", " ") for v in marg_k],
+        x=xs, y=marg_v, name="Маржа", marker_color="#2FD9A6",
+        text=[f"{v:,.0f}".replace(",", " ") for v in marg_v],
         textposition="outside", textfont=dict(color="#2FD9A6", size=11),
-        hovertemplate="<b>%{x}</b><br>Маржа: %{y:,.0f} тыс. $<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>Маржа: %{y:,.0f} $<extra></extra>",
     ))
     fig.add_trace(go.Bar(
-        x=xs, y=pay_k, name="Выплата агенту", marker_color="#F5B544",
-        text=[f"{v:,.0f}".replace(",", " ") for v in pay_k],
+        x=xs, y=pay_v, name="Выплата агенту", marker_color="#F5B544",
+        text=[f"{v:,.0f}".replace(",", " ") for v in pay_v],
         textposition="outside", textfont=dict(color="#F5B544", size=11),
-        hovertemplate="<b>%{x}</b><br>Выплата агенту: %{y:,.0f} тыс. $<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>Выплата агенту: %{y:,.0f} $<extra></extra>",
     ))
     style_plotly_2d(fig, height=380)
     fig.update_layout(
         barmode="group", bargap=0.28, bargroupgap=0.12,
         margin=dict(l=10, r=10, t=10, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        yaxis=dict(title="тыс. $", showgrid=True, zeroline=True,
+        yaxis=dict(title="USD", showgrid=True, zeroline=True, showticklabels=False,
                    zerolinecolor="rgba(255,92,122,0.5)"),
         xaxis=dict(tickfont=dict(size=12)),
         shapes=col_separators(len(xs)),
