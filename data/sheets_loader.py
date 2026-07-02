@@ -338,6 +338,79 @@ def seg_fact_months() -> list:
             if parse_ru_number(_cell(raw, SEG_MARGIN_TOTAL_ROW, col)) != 0]
 
 
+# ============= АГЕНТЫ (лист «Свод по агентам») =============
+from config import (AGENT_METRICS, AGENTS_DATA_START_ROW,  # noqa: E402
+                    AGENTS_FIRST_MONTH_COL, AGENTS_MONTH_BLOCK)
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю Свод по агентам…")
+def load_agents_svod_raw() -> list[list[str]]:
+    return _open_sheet("agents_svod").get_all_values()
+
+
+def _agent_col(month: int, offset: int) -> int:
+    """1-индекс колонки метрики (offset 0..7) для месяца month (1..12)."""
+    return AGENTS_FIRST_MONTH_COL + (month - 1) * AGENTS_MONTH_BLOCK + offset
+
+
+def agents_list(rows: list[list[str]]) -> list[tuple[int, str]]:
+    """(номер_строки, имя агента) — от строки данных до первой пустой в колонке A."""
+    out: list[tuple[int, str]] = []
+    r = AGENTS_DATA_START_ROW
+    while True:
+        name = _cell(rows, r, 1).strip()
+        if not name:
+            break
+        out.append((r, name))
+        r += 1
+    return out
+
+
+def agents_available_months(rows: list[list[str]]) -> list[int]:
+    """Месяцы (1..12), где есть хоть какой-то оборот у агентов."""
+    ms = []
+    agents = agents_list(rows)
+    for m in range(1, 13):
+        tot = sum(parse_ru_number(_cell(rows, r, _agent_col(m, 0))) for r, _ in agents)
+        if tot != 0:
+            ms.append(m)
+    return ms
+
+
+def agents_dataframe(rows: list[list[str]], month: int) -> pd.DataFrame:
+    """Таблица по агентам за месяц (month 1..12) либо YTD (month=0 → сумма всех месяцев).
+
+    Денежные и целые метрики суммируются по периоду; проценты пересчитываются
+    из абсолютных (Маржинальность=Маржа/Оборот, Тариф=Наша комиссия/Оборот и т.д.),
+    чтобы корректно работать и для одного месяца, и для накопления.
+    """
+    months = list(range(1, 13)) if month == 0 else [month]
+    recs = []
+    for r, name in agents_list(rows):
+        agg = {key: 0.0 for key, *_ in AGENT_METRICS}
+        for m in months:
+            for key, off, _lbl, fmt in AGENT_METRICS:
+                if fmt in ("money", "int"):
+                    agg[key] += parse_ru_number(_cell(rows, r, _agent_col(m, off)))
+        turn = agg["turnover"]
+        agg["marginality"] = agg["margin"] / turn if turn else 0.0
+        agg["client_rate"] = agg["our_fee"] / turn if turn else 0.0
+        agg["agent_fee_pct"] = agg["agent_fee"] / turn if turn else 0.0
+        rec = {"Агент": name}
+        rec.update(agg)
+        recs.append(rec)
+    return pd.DataFrame(recs)
+
+
+def agent_monthly_series(rows: list[list[str]], name: str, key: str) -> list[float]:
+    """Помесячный ряд (1..12) одной метрики для одного агента."""
+    off = next(o for k, o, *_ in AGENT_METRICS if k == key)
+    target = next((r for r, n in agents_list(rows) if n == name), None)
+    if target is None:
+        return [0.0] * 12
+    return [parse_ru_number(_cell(rows, target, _agent_col(m, off))) for m in range(1, 13)]
+
+
 # ============= СТАБ (на случай отсутствия доступа) =============
 def load_stub(key: str) -> pd.DataFrame:
     """Минимальные демо-данные."""
