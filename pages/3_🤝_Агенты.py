@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -12,8 +11,8 @@ from components.assistant import render_assistant
 from components.glossary import PAGE_AGENTS, render_abbr_expander
 from components.kpi import format_money
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
-                               hero, mom_colors, row_separators, style_plotly_2d,
-                               wrap_label)
+                               col_separators, hero, row_separators,
+                               style_plotly_2d, wrap_label)
 from config import MONTH_NAMES_RU, TARGET_YEAR
 from data.sheets_loader import (agent_monthly_series, agents_available_months,
                                 agents_dataframe, load_agents_svod_raw)
@@ -208,41 +207,116 @@ st.dataframe(styler, use_container_width=True, hide_index=True,
              height=min(560, 44 + 35 * len(tbl)))
 chart_card_close()
 
-# ===== Динамика по месяцам для одного агента =====
-chart_card_open("📈 Динамика агента по месяцам", "оборот (столбцы) и маржа (линия) · тыс. USD")
+# ===== Разбор по одному агенту =====
+st.markdown("### 👤 Разбор по агенту")
 agent_names = df["Агент"].tolist()
-if agent_names:
+if not agent_names:
+    st.caption("Нет активных агентов за период.")
+else:
     who = st.selectbox("Агент", agent_names, key="agents_dyn_who")
-    turn_s = agent_monthly_series(rows, who, "turnover")
-    marg_s = agent_monthly_series(rows, who, "margin")
     xs = [MONTH_NAMES_RU[m - 1] for m in months]
-    turn_k = [turn_s[m - 1] / 1000 for m in months]
-    marg_k = [marg_s[m - 1] / 1000 for m in months]
-    bar_colors, _ = mom_colors(turn_k, base_color="#36C5F0")
 
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    # ряды по месяцам (проценты храним в долях; комиссию агента берём по модулю)
+    marg_s = agent_monthly_series(rows, who, "margin")
+    fee_s = agent_monthly_series(rows, who, "agent_fee")
+    margness_s = agent_monthly_series(rows, who, "marginality")
+    feepct_s = agent_monthly_series(rows, who, "agent_fee_pct")
+    turn_s = agent_monthly_series(rows, who, "turnover")
+
+    marg_k = [marg_s[m - 1] / 1000 for m in months]
+    pay_k = [-fee_s[m - 1] / 1000 for m in months]          # выплата агенту (+)
+    margness = [margness_s[m - 1] * 100 for m in months]     # маржинальность, %
+    feepct = [-feepct_s[m - 1] * 100 for m in months]        # комиссия агента, % (+)
+    # доля комиссии агента в марже (только где маржа > 0)
+    share_m = [(pay_k[i] / marg_k[i] * 100) if marg_k[i] > 0 else 0.0
+               for i in range(len(months))]
+
+    # KPI агента за период
+    row_a = df[df["Агент"] == who].iloc[0]
+    a_margness = row_a["marginality"] * 100
+    a_feepct = -row_a["agent_fee_pct"] * 100
+    a_margin, a_pay = row_a["margin"], row_a["payout"]
+    a_share = (a_pay / a_margin * 100) if a_margin > 0 else None
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Маржинальность (период)", f"{a_margness:.2f}%".replace(".", ","))
+    k2.metric("Комиссия агента (период)", f"{a_feepct:.2f}%".replace(".", ","))
+    k3.metric("Выплачено агенту (период)", format_money(a_pay))
+    k4.metric("Доля комиссии в марже",
+              f"{a_share:.1f}%".replace(".", ",") if a_share is not None else "n/m",
+              help="Сколько из нашей маржи ушло на выплату агенту. n/m — маржа ≤ 0.")
+
+    # --- График 1: маржинальность % vs комиссия агента % (как на исходном листе, но чище) ---
+    chart_card_open("Маржинальность и комиссия агента, %", f"{who} · сравнение по месяцам")
+    fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=xs, y=turn_k, name="Оборот",
-        marker=dict(color=bar_colors, line=dict(width=0)),
-        text=[f"{v:,.0f}".replace(",", " ") for v in turn_k],
-        textposition="inside", insidetextanchor="middle",
-        textfont=dict(color="#0A0E20", size=11), textangle=0,
-        hovertemplate="<b>%{x}</b><br>Оборот: %{y:,.0f} тыс. $<extra></extra>",
-    ), secondary_y=False)
-    fig.add_trace(go.Scatter(
-        x=xs, y=marg_k, name="Маржа", mode="lines+markers+text",
-        line=dict(color="#F5B544", width=3), marker=dict(size=8, color="#F5B544"),
-        text=[f"{v:,.0f}".replace(",", " ") for v in marg_k],
-        textposition="top center", textfont=dict(color="#F5B544", size=11),
-        hovertemplate="<b>%{x}</b><br>Маржа: %{y:,.0f} тыс. $<extra></extra>",
-    ), secondary_y=True)
+        x=xs, y=margness, name="Маржинальность, %", marker_color="#36C5F0",
+        text=[f"{v:.2f}%".replace(".", ",") for v in margness],
+        textposition="outside", textfont=dict(color="#36C5F0", size=11),
+        hovertemplate="<b>%{x}</b><br>Маржинальность: %{y:.2f}%<extra></extra>",
+    ))
+    fig.add_trace(go.Bar(
+        x=xs, y=feepct, name="Комиссия агента, %", marker_color="#F5B544",
+        text=[f"{v:.2f}%".replace(".", ",") for v in feepct],
+        textposition="outside", textfont=dict(color="#F5B544", size=11),
+        hovertemplate="<b>%{x}</b><br>Комиссия агента: %{y:.2f}%<extra></extra>",
+    ))
     style_plotly_2d(fig, height=380)
     fig.update_layout(
+        barmode="group", bargap=0.28, bargroupgap=0.12,
         margin=dict(l=10, r=10, t=10, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        yaxis=dict(title="Оборот, тыс. $", showgrid=True),
-        yaxis2=dict(title="Маржа, тыс. $", showgrid=False, zeroline=True,
-                    zerolinecolor="rgba(255,92,122,0.5)"),
+        yaxis=dict(title="% от оборота", showgrid=True, ticksuffix="%", zeroline=True),
+        xaxis=dict(tickfont=dict(size=12)),
+        shapes=col_separators(len(xs)),
     )
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-chart_card_close()
+    chart_card_close()
+
+    # --- График 2: маржа vs выплата агенту, USD ---
+    chart_card_open("Маржа и выплата агенту, USD", f"{who} · тыс. USD по месяцам")
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=xs, y=marg_k, name="Маржа", marker_color="#2FD9A6",
+        text=[f"{v:,.0f}".replace(",", " ") for v in marg_k],
+        textposition="outside", textfont=dict(color="#2FD9A6", size=11),
+        hovertemplate="<b>%{x}</b><br>Маржа: %{y:,.0f} тыс. $<extra></extra>",
+    ))
+    fig.add_trace(go.Bar(
+        x=xs, y=pay_k, name="Выплата агенту", marker_color="#F5B544",
+        text=[f"{v:,.0f}".replace(",", " ") for v in pay_k],
+        textposition="outside", textfont=dict(color="#F5B544", size=11),
+        hovertemplate="<b>%{x}</b><br>Выплата агенту: %{y:,.0f} тыс. $<extra></extra>",
+    ))
+    style_plotly_2d(fig, height=380)
+    fig.update_layout(
+        barmode="group", bargap=0.28, bargroupgap=0.12,
+        margin=dict(l=10, r=10, t=10, b=10),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        yaxis=dict(title="тыс. $", showgrid=True, zeroline=True,
+                   zerolinecolor="rgba(255,92,122,0.5)"),
+        xaxis=dict(tickfont=dict(size=12)),
+        shapes=col_separators(len(xs)),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    chart_card_close()
+
+    # --- График 3 (новое): доля комиссии агента в марже ---
+    chart_card_open("Доля комиссии агента в марже, %",
+                    "какая часть нашей маржи уходит агенту (месяцы с маржой ≤ 0 — 0)")
+    bar_colors = ["#F5B544" if s <= 60 else PALETTE["danger"] for s in share_m]
+    fig = go.Figure(go.Bar(
+        x=xs, y=share_m, marker=dict(color=bar_colors, line=dict(width=0)),
+        text=[f"{v:.0f}%" for v in share_m], textposition="outside",
+        textfont=dict(color=PALETTE["ink"], size=12),
+        hovertemplate="<b>%{x}</b><br>Агенту уходит %{y:.1f}% маржи<extra></extra>",
+    ))
+    style_plotly_2d(fig, height=320)
+    fig.update_layout(
+        margin=dict(l=10, r=10, t=10, b=10),
+        yaxis=dict(title="% маржи", showgrid=True, ticksuffix="%"),
+        xaxis=dict(tickfont=dict(size=12)),
+        shapes=col_separators(len(xs)),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    chart_card_close()
