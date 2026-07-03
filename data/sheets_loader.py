@@ -338,9 +338,10 @@ def seg_fact_months() -> list:
             if parse_ru_number(_cell(raw, SEG_MARGIN_TOTAL_ROW, col)) != 0]
 
 
-# ============= АГЕНТЫ (лист «Свод по агентам») =============
-from config import (AGENT_METRICS, AGENTS_DATA_START_ROW,  # noqa: E402
-                    AGENTS_FIRST_MONTH_COL, AGENTS_MONTH_BLOCK)
+# ============= АГЕНТЫ (лист «Свод по агентам» + листы отдельных агентов) =============
+from config import (AGENT_CLIENTS_START_ROW, AGENT_METRICS,  # noqa: E402
+                    AGENTS_DATA_START_ROW, AGENTS_FIRST_MONTH_COL,
+                    AGENTS_MONTH_BLOCK, AGENTS_SPREADSHEET_ID)
 
 
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю Свод по агентам…")
@@ -348,15 +349,26 @@ def load_agents_svod_raw() -> list[list[str]]:
     return _open_sheet("agents_svod").get_all_values()
 
 
+@st.cache_resource(show_spinner=False)
+def _open_agent_tab(agent_name: str):
+    """Лист отдельного агента (имя листа = имя агента). Открывается лениво по выбору."""
+    return _get_client().open_by_key(AGENTS_SPREADSHEET_ID).worksheet(agent_name)
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю лист агента…")
+def load_agent_tab_raw(agent_name: str) -> list[list[str]]:
+    return _open_agent_tab(agent_name).get_all_values()
+
+
 def _agent_col(month: int, offset: int) -> int:
     """1-индекс колонки метрики (offset 0..7) для месяца month (1..12)."""
     return AGENTS_FIRST_MONTH_COL + (month - 1) * AGENTS_MONTH_BLOCK + offset
 
 
-def agents_list(rows: list[list[str]]) -> list[tuple[int, str]]:
-    """(номер_строки, имя агента) — от строки данных до первой пустой в колонке A."""
+def _scan_names(rows: list[list[str]], start_row: int) -> list[tuple[int, str]]:
+    """(номер_строки, имя) — от start_row до первой пустой ячейки в колонке A."""
     out: list[tuple[int, str]] = []
-    r = AGENTS_DATA_START_ROW
+    r = start_row
     while True:
         name = _cell(rows, r, 1).strip()
         if not name:
@@ -364,6 +376,36 @@ def agents_list(rows: list[list[str]]) -> list[tuple[int, str]]:
         out.append((r, name))
         r += 1
     return out
+
+
+def agents_list(rows: list[list[str]]) -> list[tuple[int, str]]:
+    """(номер_строки, имя агента) на листе «Свод по агентам»."""
+    return _scan_names(rows, AGENTS_DATA_START_ROW)
+
+
+def _aggregate_svod(rows: list[list[str]], entries: list[tuple[int, str]],
+                    month: int, label: str) -> pd.DataFrame:
+    """Агрегация одинаковой раскладки (8 метрик×12 мес) по набору строк.
+
+    month 1..12 — конкретный месяц, month=0 — YTD (сумма всех месяцев).
+    Денежные/целые суммируются; проценты пересчитываются из абсолютных.
+    """
+    months = list(range(1, 13)) if month == 0 else [month]
+    recs = []
+    for r, name in entries:
+        agg = {key: 0.0 for key, *_ in AGENT_METRICS}
+        for m in months:
+            for key, off, _lbl, fmt in AGENT_METRICS:
+                if fmt in ("money", "int"):
+                    agg[key] += parse_ru_number(_cell(rows, r, _agent_col(m, off)))
+        turn = agg["turnover"]
+        agg["marginality"] = agg["margin"] / turn if turn else 0.0
+        agg["client_rate"] = agg["our_fee"] / turn if turn else 0.0
+        agg["agent_fee_pct"] = agg["agent_fee"] / turn if turn else 0.0
+        rec = {label: name}
+        rec.update(agg)
+        recs.append(rec)
+    return pd.DataFrame(recs)
 
 
 def agents_available_months(rows: list[list[str]]) -> list[int]:
@@ -378,28 +420,18 @@ def agents_available_months(rows: list[list[str]]) -> list[int]:
 
 
 def agents_dataframe(rows: list[list[str]], month: int) -> pd.DataFrame:
-    """Таблица по агентам за месяц (month 1..12) либо YTD (month=0 → сумма всех месяцев).
+    """Таблица по агентам за месяц (1..12) либо YTD (month=0)."""
+    return _aggregate_svod(rows, agents_list(rows), month, "Агент")
 
-    Денежные и целые метрики суммируются по периоду; проценты пересчитываются
-    из абсолютных (Маржинальность=Маржа/Оборот, Тариф=Наша комиссия/Оборот и т.д.),
-    чтобы корректно работать и для одного месяца, и для накопления.
+
+def agent_clients_dataframe(agent_name: str, month: int) -> pd.DataFrame:
+    """Таблица по клиентам одного агента (лист агента, клиенты с строки 7).
+
+    Ленивая загрузка: читается только лист выбранного агента.
     """
-    months = list(range(1, 13)) if month == 0 else [month]
-    recs = []
-    for r, name in agents_list(rows):
-        agg = {key: 0.0 for key, *_ in AGENT_METRICS}
-        for m in months:
-            for key, off, _lbl, fmt in AGENT_METRICS:
-                if fmt in ("money", "int"):
-                    agg[key] += parse_ru_number(_cell(rows, r, _agent_col(m, off)))
-        turn = agg["turnover"]
-        agg["marginality"] = agg["margin"] / turn if turn else 0.0
-        agg["client_rate"] = agg["our_fee"] / turn if turn else 0.0
-        agg["agent_fee_pct"] = agg["agent_fee"] / turn if turn else 0.0
-        rec = {"Агент": name}
-        rec.update(agg)
-        recs.append(rec)
-    return pd.DataFrame(recs)
+    craw = load_agent_tab_raw(agent_name)
+    entries = _scan_names(craw, AGENT_CLIENTS_START_ROW)
+    return _aggregate_svod(craw, entries, month, "Клиент")
 
 
 def agent_monthly_series(rows: list[list[str]], name: str, key: str) -> list[float]:

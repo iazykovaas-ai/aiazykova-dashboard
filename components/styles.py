@@ -241,6 +241,14 @@ _CSS = """
 
 
 def apply():
+    # Свежие данные при входе: на первом запуске новой сессии сбрасываем кэш,
+    # чтобы человек, открывший дашборд, увидел актуальные цифры (TTL 1 час — страховка).
+    if "session_data_refreshed" not in st.session_state:
+        st.session_state["session_data_refreshed"] = True
+        try:
+            st.cache_data.clear()
+        except Exception:
+            pass
     st.markdown(_CSS, unsafe_allow_html=True)
 
 

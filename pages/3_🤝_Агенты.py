@@ -14,8 +14,9 @@ from components.styles import (PALETTE, apply, chart_card_close, chart_card_open
                                col_separators, hero, row_separators,
                                style_plotly_2d, wrap_label)
 from config import MONTH_NAMES_RU, TARGET_YEAR
-from data.sheets_loader import (agent_monthly_series, agents_available_months,
-                                agents_dataframe, load_agents_svod_raw)
+from data.sheets_loader import (agent_clients_dataframe, agent_monthly_series,
+                                agents_available_months, agents_dataframe,
+                                load_agents_svod_raw)
 
 st.set_page_config(page_title="Доходность агентов", page_icon="🤝", layout="wide")
 apply()
@@ -173,19 +174,6 @@ else:
 chart_card_close()
 
 # ===== Детальная таблица (с «тепловой» заливкой) =====
-chart_card_open("📋 Детализация по агентам",
-                f"{period_label} · Эффективность = маржа ÷ выплата агенту "
-                "(сколько $ маржи на $1 агенту); заливка — от красного (провал) к зелёному")
-tbl = df.copy()
-# Эффективность: сколько маржи приходится на $1 выплаты агенту (n/m, если выплаты нет)
-tbl["efficiency"] = [(m / p) if p > 0 else float("nan")
-                     for m, p in zip(tbl["margin"], tbl["payout"])]
-tbl = tbl[["Агент", "turnover", "deals", "margin", "marginality", "client_rate",
-           "our_fee", "agent_fee_pct", "agent_fee", "efficiency"]]
-tbl.columns = ["Агент", "Оборот", "Сделок", "Маржа", "Маржинальность", "Тариф клиента",
-               "Наша комиссия", "Комиссия агента, %", "Комиссия агенту", "Эффективность"]
-
-
 def _pct(v):
     return f"{v*100:.2f}%".replace(".", ",")
 
@@ -210,18 +198,35 @@ def _bg_diverging(s):
     return out
 
 
-styler = (
-    tbl.style
-    .format({
-        "Оборот": _m, "Маржа": _m, "Наша комиссия": _m, "Комиссия агенту": _m,
-        "Сделок": "{:.0f}",
-        "Маржинальность": _pct, "Тариф клиента": _pct, "Комиссия агента, %": _pct,
-        "Эффективность": _eff,
-    })
-    .apply(_bg_diverging, subset=["Маржа", "Маржинальность", "Эффективность"])
-)
-st.dataframe(styler, use_container_width=True, hide_index=True,
-             height=min(600, 44 + 35 * len(tbl)))
+def _detail_styler(frame, name_col):
+    """Стилизованная таблица (Оборот…Эффективность) с тепловой заливкой.
+
+    frame должен содержать колонки metric-ключей + payout и колонку name_col.
+    """
+    t = frame.copy()
+    t["efficiency"] = [(m / p) if p > 0 else float("nan")
+                       for m, p in zip(t["margin"], t["payout"])]
+    t = t[[name_col, "turnover", "deals", "margin", "marginality", "client_rate",
+           "our_fee", "agent_fee_pct", "agent_fee", "efficiency"]]
+    t.columns = [name_col, "Оборот", "Сделок", "Маржа", "Маржинальность", "Тариф клиента",
+                 "Наша комиссия", "Комиссия агента, %", "Комиссия агенту", "Эффективность"]
+    return (
+        t.style
+        .format({
+            "Оборот": _m, "Маржа": _m, "Наша комиссия": _m, "Комиссия агенту": _m,
+            "Сделок": "{:.0f}",
+            "Маржинальность": _pct, "Тариф клиента": _pct, "Комиссия агента, %": _pct,
+            "Эффективность": _eff,
+        })
+        .apply(_bg_diverging, subset=["Маржа", "Маржинальность", "Эффективность"])
+    )
+
+
+chart_card_open("📋 Детализация по агентам",
+                f"{period_label} · Эффективность = маржа ÷ выплата агенту "
+                "(сколько $ маржи на $1 агенту); заливка — от красного (провал) к зелёному")
+st.dataframe(_detail_styler(df, "Агент"), use_container_width=True, hide_index=True,
+             height=min(600, 44 + 35 * len(df)))
 chart_card_close()
 
 # ===== Разбор по одному агенту =====
@@ -336,4 +341,53 @@ else:
         shapes=col_separators(len(xs)),
     )
     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    chart_card_close()
+
+    # --- Клиенты выбранного агента (ленивая загрузка листа агента) ---
+    cdf = agent_clients_dataframe(who, period)
+    cmask = (cdf["turnover"] != 0) | (cdf["margin"] != 0) | (cdf["deals"] != 0)
+    cdf = cdf[cmask].copy()
+    cdf["payout"] = -cdf["agent_fee"]
+    cdf = cdf.sort_values("margin", ascending=False).reset_index(drop=True)
+
+    # сверка: сумма по клиентам ≈ итог агента (из свода)
+    c_turn, c_marg = cdf["turnover"].sum(), cdf["margin"].sum()
+    a_turn, a_marg = row_a["turnover"], row_a["margin"]
+    check = "✅ сходится с итогом агента"
+    if abs(c_turn - a_turn) > max(1.0, 0.005 * abs(a_turn)) or \
+       abs(c_marg - a_marg) > max(1.0, 0.02 * abs(a_marg) + 1):
+        check = "⚠️ расхождение с итогом агента"
+
+    chart_card_open(f"Клиенты агента · {who}",
+                    f"{period_label} · {len(cdf)} активных клиентов · {check}")
+    if cdf.empty:
+        st.caption("У агента нет активных клиентов за период.")
+    else:
+        # Бар: маржа по клиентам (сортировка, зелёный/красный)
+        cb = cdf.sort_values("margin", ascending=True)
+        colors = [PALETTE["success"] if v >= 0 else PALETTE["danger"] for v in cb["margin"]]
+        figc = go.Figure(go.Bar(
+            x=cb["margin"], y=[wrap_label(a, 16) for a in cb["Клиент"]], orientation="h",
+            marker=dict(color=colors, line=dict(width=0)),
+            text=[f"{v:,.0f}".replace(",", " ") for v in cb["margin"]],
+            textposition="outside", textfont=dict(color=PALETTE["ink"], size=11),
+            customdata=cb[["turnover", "marginality", "deals"]],
+            hovertemplate=("<b>%{y}</b><br>Маржа: %{x:,.0f} $<br>"
+                           "Оборот: %{customdata[0]:,.0f} $<br>"
+                           "Маржинальность: %{customdata[1]:.2%}<br>"
+                           "Сделок: %{customdata[2]}<extra></extra>"),
+        ))
+        style_plotly_2d(figc, height=max(300, 26 * len(cb)))
+        figc.update_layout(
+            xaxis=dict(title="Маржа, USD", showgrid=True, zeroline=True,
+                       showticklabels=False, zerolinecolor="rgba(255,92,122,0.55)"),
+            yaxis=dict(showgrid=False, tickfont=dict(size=12)),
+            shapes=row_separators(len(cb)),
+            margin=dict(l=10, r=90, t=10, b=10),
+        )
+        st.plotly_chart(figc, use_container_width=True, config={"displayModeBar": False})
+
+        # Таблица клиентов — те же столбцы и заливка, что в детализации агентов
+        st.dataframe(_detail_styler(cdf, "Клиент"), use_container_width=True,
+                     hide_index=True, height=min(560, 44 + 35 * len(cdf)))
     chart_card_close()
