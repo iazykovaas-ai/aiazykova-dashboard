@@ -248,7 +248,7 @@ chart_card_close()
 
 # ===== Разбор по одному агенту =====
 st.markdown("### 👤 Разбор по агенту")
-agent_names = df["Агент"].tolist()
+agent_names = sorted(df["Агент"].tolist(), key=str.lower)
 if not agent_names:
     st.caption("Нет активных агентов за период.")
 else:
