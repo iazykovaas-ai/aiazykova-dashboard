@@ -222,11 +222,28 @@ def _detail_styler(frame, name_col):
     )
 
 
-chart_card_open("📋 Детализация по агентам",
-                f"{period_label} · Эффективность = маржа ÷ выплата агенту "
-                "(сколько $ маржи на $1 агенту); заливка — от красного (провал) к зелёному")
-st.dataframe(_detail_styler(df, "Агент"), use_container_width=True, hide_index=True,
-             height=min(600, 44 + 35 * len(df)))
+def _render_detail(frame, name_col, base_key):
+    """Описание + кнопка сброса сортировки/фильтров + таблица с заливкой.
+
+    Сброс работает сменой key таблицы (интерактивная сортировка/фильтры st.dataframe
+    сбрасываются при ремоунте виджета)."""
+    st.markdown(
+        "🧮 **Эффективность = Маржа ÷ выплата агенту** (выплата = «Комиссия агенту» по модулю) — "
+        "сколько $ маржи приносит каждый $1, выплаченный агенту (напр. «5,1×»). "
+        "«—» — если выплаты агенту не было. "
+        "Заливка ячеек: зелёная — плюс, красная — минус, ярче — сильнее."
+    )
+    nkey = f"{base_key}_nonce"
+    st.session_state.setdefault(nkey, 0)
+    if st.button("↺ Сбросить сортировку и фильтры", key=f"{base_key}_reset"):
+        st.session_state[nkey] += 1
+    st.dataframe(_detail_styler(frame, name_col), use_container_width=True, hide_index=True,
+                 height=min(600, 44 + 35 * len(frame)),
+                 key=f"{base_key}_tbl_{st.session_state[nkey]}")
+
+
+chart_card_open("📋 Детализация по агентам", period_label)
+_render_detail(df, "Агент", "agents_detail")
 chart_card_close()
 
 # ===== Разбор по одному агенту =====
@@ -400,7 +417,6 @@ else:
             "modeBarButtonsToRemove": ["select2d", "lasso2d"],
         })
 
-        # Таблица клиентов — те же столбцы и заливка, что в детализации агентов
-        st.dataframe(_detail_styler(cdf, "Клиент"), use_container_width=True,
-                     hide_index=True, height=min(560, 44 + 35 * len(cdf)))
+        # Таблица клиентов — те же столбцы, заливка и сброс, что в детализации агентов
+        _render_detail(cdf, "Клиент", f"clients_{who}")
     chart_card_close()
