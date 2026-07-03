@@ -393,7 +393,12 @@ else:
             shapes=col_separators(len(cb)),
             margin=dict(l=10, r=10, t=10, b=10),
         )
-        st.plotly_chart(figc, use_container_width=True, config={"displayModeBar": False})
+        st.caption("🔍 Потяни рамкой область, чтобы приблизить мелкие столбцы · "
+                   "колесо мыши — зум · двойной клик — сброс")
+        st.plotly_chart(figc, use_container_width=True, config={
+            "displayModeBar": True, "displaylogo": False, "scrollZoom": True,
+            "modeBarButtonsToRemove": ["select2d", "lasso2d"],
+        })
 
         # Таблица клиентов — те же столбцы и заливка, что в детализации агентов
         st.dataframe(_detail_styler(cdf, "Клиент"), use_container_width=True,
