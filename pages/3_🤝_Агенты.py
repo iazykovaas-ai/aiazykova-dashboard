@@ -363,27 +363,35 @@ else:
     if cdf.empty:
         st.caption("У агента нет активных клиентов за период.")
     else:
-        # Бар: маржа по клиентам (сортировка, зелёный/красный)
-        cb = cdf.sort_values("margin", ascending=True)
-        colors = [PALETTE["success"] if v >= 0 else PALETTE["danger"] for v in cb["margin"]]
-        figc = go.Figure(go.Bar(
-            x=cb["margin"], y=[wrap_label(a, 16) for a in cb["Клиент"]], orientation="h",
-            marker=dict(color=colors, line=dict(width=0)),
+        # Вертикальные группы: маржа + вознаграждение агента по клиентам
+        cb = cdf.sort_values("margin", ascending=False)
+        xnames = [wrap_label(a, 12) for a in cb["Клиент"]]
+        figc = go.Figure()
+        figc.add_trace(go.Bar(
+            x=xnames, y=cb["margin"], name="Маржа", marker_color="#2FD9A6",
             text=[f"{v:,.0f}".replace(",", " ") for v in cb["margin"]],
-            textposition="outside", textfont=dict(color=PALETTE["ink"], size=11),
+            textposition="outside", textfont=dict(color="#2FD9A6", size=11),
             customdata=cb[["turnover", "marginality", "deals"]],
-            hovertemplate=("<b>%{y}</b><br>Маржа: %{x:,.0f} $<br>"
+            hovertemplate=("<b>%{x}</b><br>Маржа: %{y:,.0f} $<br>"
                            "Оборот: %{customdata[0]:,.0f} $<br>"
                            "Маржинальность: %{customdata[1]:.2%}<br>"
                            "Сделок: %{customdata[2]}<extra></extra>"),
         ))
-        style_plotly_2d(figc, height=max(300, 26 * len(cb)))
+        figc.add_trace(go.Bar(
+            x=xnames, y=cb["payout"], name="Вознаграждение агента", marker_color="#F5B544",
+            text=[f"{v:,.0f}".replace(",", " ") for v in cb["payout"]],
+            textposition="outside", textfont=dict(color="#F5B544", size=11),
+            hovertemplate="<b>%{x}</b><br>Вознаграждение агента: %{y:,.0f} $<extra></extra>",
+        ))
+        style_plotly_2d(figc, height=420)
         figc.update_layout(
-            xaxis=dict(title="Маржа, USD", showgrid=True, zeroline=True,
-                       showticklabels=False, zerolinecolor="rgba(255,92,122,0.55)"),
-            yaxis=dict(showgrid=False, tickfont=dict(size=12)),
-            shapes=row_separators(len(cb)),
-            margin=dict(l=10, r=90, t=10, b=10),
+            barmode="group", bargap=0.30, bargroupgap=0.12,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            yaxis=dict(title="USD", showgrid=True, zeroline=True, showticklabels=False,
+                       zerolinecolor="rgba(255,92,122,0.5)"),
+            xaxis=dict(tickfont=dict(size=11)),
+            shapes=col_separators(len(cb)),
+            margin=dict(l=10, r=10, t=10, b=10),
         )
         st.plotly_chart(figc, use_container_width=True, config={"displayModeBar": False})
 
