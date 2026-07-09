@@ -74,7 +74,7 @@ fig.update_layout(
     showlegend=False,
 )
 style_plotly_3d(fig, height=460)
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 st.markdown(
     """
     <div style="display:flex;gap:24px;justify-content:center;margin-top:-8px;">
@@ -107,7 +107,7 @@ fig = go.Figure(go.Bar(
 fig.add_hline(y=0, line=dict(color=PALETTE["muted"], width=1))
 style_plotly_2d(fig, height=320)
 fig.update_layout(yaxis=dict(title="млн $"), xaxis=dict(showgrid=False))
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 chart_card_close()
 
 # Таблица
@@ -115,5 +115,5 @@ chart_card_open("Детализация", "")
 display = df.copy()
 for col in ("Потребность, USD", "Доступно, USD", "Gap"):
     display[col] = display[col].apply(fmt_usd)
-st.dataframe(display, use_container_width=True, hide_index=True)
+st.dataframe(display, width="stretch", hide_index=True)
 chart_card_close()
