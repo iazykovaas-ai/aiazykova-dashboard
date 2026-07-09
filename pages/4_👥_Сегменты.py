@@ -14,15 +14,21 @@ from components.styles import (CHART_COLORS, PALETTE, apply,
                                hero, style_plotly_2d, style_plotly_3d)
 from data.sheets_loader import load
 
-st.set_page_config(page_title="Клиенты по типам", page_icon="👥", layout="wide")
+st.set_page_config(page_title="Сегменты (в работе)", page_icon="👥", layout="wide")
 apply()
 render_assistant()
 
-hero("👥 Клиенты по типам", "14 типов клиентов · обороты и количество")
+hero("👥 Сегменты", "Бизнес-линии: клиенты, обороты, средний чек, маржинальность")
+
+st.error(
+    "🚧 **Раздел в разработке.** Все цифры и графики ниже — **демонстрационные "
+    "(заглушка)**, а не реальные данные компании. Не используйте их для решений: "
+    "это макет будущего раздела «Сегменты»."
+)
 
 render_abbr_expander(PAGE_SEG)
 
-df = load("clients", use_stub=True)
+df = load("clients", use_stub=True)   # ЗАГЛУШКА — демо-данные, НЕ реальные цифры
 df["Оборот, $"] = df["Оборот, млн $"] * 1_000_000
 
 total_clients = df["Кол-во"].sum()
@@ -61,7 +67,7 @@ fig.update_layout(
     showlegend=False,
 )
 style_plotly_3d(fig, height=480)
-st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 chart_card_close()
 
 # Количество и средний чек
@@ -85,7 +91,7 @@ with left:
     style_plotly_2d(fig, height=400)
     fig.update_layout(xaxis=dict(showgrid=True, showticklabels=False),
                       yaxis=dict(showgrid=False))
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     chart_card_close()
 
 with right:
@@ -108,7 +114,7 @@ with right:
     style_plotly_2d(fig, height=400)
     fig.update_layout(xaxis=dict(showgrid=True, showticklabels=False),
                       yaxis=dict(showgrid=False))
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     chart_card_close()
 
 # Таблица
@@ -117,5 +123,5 @@ display = df.sort_values("Оборот, млн $", ascending=False).copy()
 display["Средний оборот"] = (display["Оборот, $"] / display["Кол-во"]).apply(format_money)
 display["Оборот"] = display["Оборот, $"].apply(format_money)
 display = display[["Тип", "Кол-во", "Оборот", "Средний оборот"]]
-st.dataframe(display, use_container_width=True, hide_index=True)
+st.dataframe(display, width="stretch", hide_index=True)
 chart_card_close()

@@ -137,7 +137,7 @@ else:
     ))
     style_plotly_2d(fig, height=420)
     fig.update_layout(xaxis=dict(showgrid=False, type="category", tickangle=-45))
-st.plotly_chart(fig, use_container_width=True,
+st.plotly_chart(fig, width="stretch",
                 config={"displayModeBar": True, "displaylogo": False})
 chart_card_close()
 
@@ -166,7 +166,7 @@ with left:
     fig.update_layout(xaxis=dict(showgrid=False),
                       yaxis=dict(ticksuffix="%" if metric_fmt == "pct" else ""),
                       shapes=col_separators(len(pairs)))
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     chart_card_close()
 
 with right:
@@ -194,7 +194,7 @@ with right:
                                      range=[_left, _xmax * 1.22]),
                           yaxis=dict(showgrid=False, tickfont=dict(size=12)),
                           shapes=row_separators(len(items)))
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
         chart_card_close()
     else:
         chart_card_open("По бизнес-линиям", "")
@@ -210,7 +210,7 @@ for key in KPI_METRICS:
     series = dict(mon_summary_daily(rows, key, month))
     tbl[MON_METRIC_LABELS[key]] = [fmt_val(series.get(d, 0.0), meta["fmt"])
                                    for d, _ in daily]
-st.dataframe(pd.DataFrame(tbl), use_container_width=True, hide_index=True, height=420)
+st.dataframe(pd.DataFrame(tbl), width="stretch", hide_index=True, height=420)
 chart_card_close()
 
 
@@ -285,7 +285,7 @@ dcfig.update_yaxes(title_text="Оборот, $", tickformat="~s", showgrid=True,
                    range=[_t_lo, _t_hi], **_zl, secondary_y=False)
 dcfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False,
                    range=[_g_lo, _g_hi], dtick=0.5, tick0=0, **_zl, secondary_y=True)
-st.plotly_chart(dcfig, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(dcfig, width="stretch", config={"displayModeBar": False})
 st.caption("🟢 рост оборота ко вчера · 🔴 спад · насыщеннее = сильнее изменение. "
            "Подписи: оборот — над столбцами, маржинальность — над точками. "
            "Тесно? Откройте график на весь экран кнопкой ⛶ сверху справа.")
@@ -309,7 +309,7 @@ hfig.update_layout(height=460, paper_bgcolor="rgba(0,0,0,0)",
                    font=dict(color=PALETTE["ink"], size=11),
                    margin=dict(l=10, r=10, t=10, b=10),
                    yaxis=dict(autorange="reversed"))
-st.plotly_chart(hfig, use_container_width=True, config={"displayModeBar": False})
+st.plotly_chart(hfig, width="stretch", config={"displayModeBar": False})
 chart_card_close()
 
 # ===== Таблица-светофор по сегментам =====
@@ -340,5 +340,5 @@ for line in MON_LINES:
     seg_rows.append({"Сегмент": MON_LINE_LABELS_RU.get(line, line),
                      "Оборот": _k(seg_turn.get(line, 0.0)),
                      "Маржинальность": f"{mg * 100:.2f}%", "Статус": light})
-st.dataframe(pd.DataFrame(seg_rows), use_container_width=True, hide_index=True, height=430)
+st.dataframe(pd.DataFrame(seg_rows), width="stretch", hide_index=True, height=430)
 chart_card_close()

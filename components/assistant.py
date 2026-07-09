@@ -55,8 +55,8 @@ TOPICS = [
         "title": "🤝 Доходность агентов",
         "answer": "Это раздел **Доходность агентов**: по каждому агенту — оборот, число сделок, "
                   "маржа и маржинальность, тариф клиента, наша комиссия и выплата агенту. "
-                  "Есть рейтинг агентов, пузырьковая карта «оборот × маржинальность», "
-                  "детальная таблица и динамика выбранного агента по месяцам. "
+                  "Есть рейтинг агентов, маржинальность по клиентам агентов, детальная таблица "
+                  "с эффективностью, а также разбор выбранного агента по месяцам и его клиенты. "
                   "Период (месяц или весь год) выбирается вверху.",
     },
     {
@@ -192,7 +192,7 @@ def render_assistant() -> None:
 
         # Быстрые кнопки-подсказки
         for i, q in enumerate(QUICK):
-            if st.button(q, key=f"quick_{i}", use_container_width=True):
+            if st.button(q, key=f"quick_{i}", width="stretch"):
                 _handle(q)
                 st.rerun()
 
@@ -214,7 +214,7 @@ def render_assistant() -> None:
                 )
                 if payload.get("page"):
                     st.page_link(payload["page"], label=f"Перейти → {payload['title']}",
-                                 use_container_width=True)
+                                 width="stretch")
 
         # Поле ввода
         q = st.chat_input("Спросите навигатора…", key="assistant_input")

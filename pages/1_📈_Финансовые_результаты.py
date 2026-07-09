@@ -119,7 +119,7 @@ for col, (label, val, prev, key, color, short) in zip(st.columns(len(kpi_defs)),
         st.metric(label, fmt_kusd(val), delta)
         st.caption(f"Тренд {short} · январь — {_last_name}")
         st.plotly_chart(sparkline(pl_series(rows, key, "fact", 2026), color),
-                        use_container_width=True, config={"displayModeBar": False})
+                        width="stretch", config={"displayModeBar": False})
 
 # ===== Гейджи: выполнение бюджета за выбранный период =====
 # Бюджет и маржи (GP), и чистой прибыли — помесячный: суммируем за выбранный период.
@@ -147,7 +147,7 @@ def _render_gauge(col, pct, budget, title, color):
     else:
         col.plotly_chart(gauge(pct, title, vmax=max(150, abs(pct) * 1.15),
                                target=100, color=color),
-                         use_container_width=True, config={"displayModeBar": False})
+                         width="stretch", config={"displayModeBar": False})
 
 
 _render_gauge(gc1, gp_done, gp_budget, "Маржинальная прибыль", "#2FD9A6")
@@ -209,7 +209,7 @@ with tab_wf:
                                 tickfont=dict(size=12)),
                      shapes=col_separators(len(wf_filtered)),
                      separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
-    st.plotly_chart(wf, use_container_width=True,
+    st.plotly_chart(wf, width="stretch",
                     config={"displayModeBar": True, "displaylogo": False, "scrollZoom": True})
     chart_card_close()
 
@@ -253,7 +253,7 @@ with tab_alt:
         fig.update_layout(showlegend=True, separators=", ",
                           legend=dict(orientation="v", y=0.5, x=1.02,
                                       font=dict(size=11)))
-        st.plotly_chart(fig, use_container_width=True,
+        st.plotly_chart(fig, width="stretch",
                         config={"displayModeBar": False})
         chart_card_close()
 
@@ -289,7 +289,7 @@ with tab_alt:
         style_plotly_2d(fig, height=440)
         fig.update_layout(yaxis=dict(ticksuffix="%"),
                           legend=dict(orientation="h", y=1.1))
-        st.plotly_chart(fig, use_container_width=True,
+        st.plotly_chart(fig, width="stretch",
                         config={"displayModeBar": False})
         chart_card_close()
 
@@ -310,7 +310,7 @@ with tab_funnel:
     style_plotly_2d(funnel, height=460)
     funnel.update_layout(separators=". ", yaxis=dict(showgrid=False),
                          xaxis=dict(visible=False))
-    st.plotly_chart(funnel, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(funnel, width="stretch", config={"displayModeBar": False})
     st.caption("Каждый уровень — сколько от выручки остаётся после расходов: "
                "Валовая (− прямые расходы) → Операционная (− OPEX ± FX) → Чистая (− налог).")
     chart_card_close()
@@ -379,7 +379,7 @@ else:
                       uniformtext=dict(minsize=9, mode="show"),
                       hoverlabel=dict(bgcolor="#1B2247", font_size=13,
                                       font_color=PALETTE["ink"], bordercolor=PALETTE["primary"]))
-st.plotly_chart(fig, use_container_width=True, config=_MB)
+st.plotly_chart(fig, width="stretch", config=_MB)
 if opex_view == "Treemap":
     # Мелкие плитки/ховер у края нечитаемы → компактная горизонтальная лента-расшифровка
     _tot = sum(t[2] for t in ovals) or 1
@@ -458,7 +458,7 @@ style_plotly_2d(fig, height=420)
 fig.update_layout(xaxis=dict(showgrid=False,
                              range=[-0.6, len(xs) - 0.4] if len(xs) > 1 else None),
                   shapes=col_separators(len(xs)), separators=". ")
-st.plotly_chart(fig, use_container_width=True, config=_MB)
+st.plotly_chart(fig, width="stretch", config=_MB)
 if dyn_view == "Бары":
     st.caption("🟢 рост · 🔴 снижение к пред. месяцу · насыщеннее = сильнее изменение · первый месяц базовый")
 st.caption("🔍 Увеличили график? Кнопка 🏠 в панели сверху справа (или двойной клик) — вернуть масштаб.")
@@ -500,7 +500,7 @@ cfig.update_layout(legend=dict(orientation="h", y=1.12), xaxis=dict(showgrid=Fal
                    shapes=col_separators(len(cmonths)), separators=", ")
 cfig.update_yaxes(title_text="Оборот, млн $", secondary_y=False)
 cfig.update_yaxes(title_text="Маржа, %", ticksuffix="%", showgrid=False, secondary_y=True)
-st.plotly_chart(cfig, use_container_width=True, config=_MB)
+st.plotly_chart(cfig, width="stretch", config=_MB)
 st.caption("🟢 рост оборота к пред. месяцу · 🔴 спад · насыщеннее = сильнее изменение. "
            "Оборот подписан внутри столбцов, маржинальность — над точками.")
 chart_card_close()
@@ -547,5 +547,5 @@ display_df = table_df.drop(columns=["_kind"])
 styled = display_df.style.apply(
     lambda row: style_pl_row(table_df.iloc[row.name]["_kind"], len(row)), axis=1
 )
-st.dataframe(styled, use_container_width=True, hide_index=True, height=820)
+st.dataframe(styled, width="stretch", hide_index=True, height=820)
 chart_card_close()

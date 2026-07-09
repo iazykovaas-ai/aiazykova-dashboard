@@ -139,7 +139,7 @@ else:
         shapes=row_separators(len(top)),
         margin=dict(l=10, r=90, t=10, b=10),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 chart_card_close()
 
 # ===== Маржинальность по агентам =====
@@ -170,7 +170,7 @@ else:
         shapes=row_separators(len(sc)),
         margin=dict(l=10, r=70, t=10, b=30),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 chart_card_close()
 
 # ===== Детальная таблица (с «тепловой» заливкой) =====
@@ -237,7 +237,7 @@ def _render_detail(frame, name_col, base_key):
     st.session_state.setdefault(nkey, 0)
     if st.button("↺ Сбросить сортировку и фильтры", key=f"{base_key}_reset"):
         st.session_state[nkey] += 1
-    st.dataframe(_detail_styler(frame, name_col), use_container_width=True, hide_index=True,
+    st.dataframe(_detail_styler(frame, name_col), width="stretch", hide_index=True,
                  height=min(600, 44 + 35 * len(frame)),
                  key=f"{base_key}_tbl_{st.session_state[nkey]}")
 
@@ -309,7 +309,7 @@ else:
         xaxis=dict(tickfont=dict(size=12)),
         shapes=col_separators(len(xs)),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     chart_card_close()
 
     # --- График 2: маржа vs выплата агенту, USD (полные суммы) ---
@@ -337,7 +337,7 @@ else:
         xaxis=dict(tickfont=dict(size=12)),
         shapes=col_separators(len(xs)),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     chart_card_close()
 
     # --- График 3 (новое): доля комиссии агента в марже ---
@@ -357,7 +357,7 @@ else:
         xaxis=dict(tickfont=dict(size=12)),
         shapes=col_separators(len(xs)),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     chart_card_close()
 
     # --- Клиенты выбранного агента (ленивая загрузка листа агента) ---
@@ -412,7 +412,7 @@ else:
         )
         st.caption("🔍 Потяни рамкой область, чтобы приблизить мелкие столбцы · "
                    "колесо мыши — зум · двойной клик — сброс")
-        st.plotly_chart(figc, use_container_width=True, config={
+        st.plotly_chart(figc, width="stretch", config={
             "displayModeBar": True, "displaylogo": False, "scrollZoom": True,
             "modeBarButtonsToRemove": ["select2d", "lasso2d"],
         })

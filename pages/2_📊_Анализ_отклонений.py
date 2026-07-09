@@ -120,7 +120,7 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
                                  tickfont=dict(size=12)),
                       shapes=seps,
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
-    st.plotly_chart(fig, use_container_width=True,
+    st.plotly_chart(fig, width="stretch",
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d", "lasso2d"]})
     chart_card_close()
@@ -144,7 +144,7 @@ def contrib_bars(steps, title, subtitle):
                       yaxis=dict(showgrid=False, automargin=True, tickfont=dict(size=12)),
                       shapes=row_separators(len(items)),
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     chart_card_close()
 
 
@@ -261,7 +261,7 @@ with tab_pf:
                       xaxis=dict(showticklabels=False, showgrid=True),
                       legend=dict(orientation="h", y=1.15),
                       separators=". ", uniformtext_minsize=10, uniformtext_mode="hide")
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
     # авто-описание за период
     if m_fmt == "pct":
@@ -385,7 +385,7 @@ with tab_pf:
     st.session_state.setdefault("svod_nonce", 0)
     if st.button("↺ Сбросить сортировку и ширину", key="svod_reset"):
         st.session_state.svod_nonce += 1
-    st.dataframe(styler, use_container_width=True, hide_index=True,
+    st.dataframe(styler, width="stretch", hide_index=True,
                  key=f"svod_table_{st.session_state.svod_nonce}")
     st.caption("Цвет «Отклонения»: зелёный — вклад в рост чистой прибыли, "
                "красный — снижение; насыщенность отражает размер отклонения. "
@@ -560,7 +560,7 @@ with tab_pp:
     st.session_state.setdefault("svod_pp_nonce", 0)
     if st.button("↺ Сбросить сортировку и ширину", key="svod_pp_reset"):
         st.session_state.svod_pp_nonce += 1
-    st.dataframe(pp_styler, use_container_width=True, hide_index=True,
+    st.dataframe(pp_styler, width="stretch", hide_index=True,
                  key=f"svod_pp_table_{st.session_state.svod_pp_nonce}")
     st.caption("Цвет «Изменения»: зелёный — вклад в рост чистой прибыли, красный — снижение; "
                "насыщенность отражает размер. **n/m** в «Δ» — пред. месяц ≈ 0 или смена знака.")
