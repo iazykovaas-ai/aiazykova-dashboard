@@ -338,6 +338,108 @@ def seg_fact_months() -> list:
             if parse_ru_number(_cell(raw, SEG_MARGIN_TOTAL_ROW, col)) != 0]
 
 
+# ============= СЕГМЕНТЫ (устойчивый ридер «Бизнес-блока») =============
+from config import BB_LINE_LABELS_RU, BB_SECTIONS  # noqa: E402
+
+_BB_MON3 = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+            "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+
+
+def _bb_header(rows: list[list[str]], key: str):
+    """Строка-шапка «Business Line» таблицы key (ищем по подстроке заголовка секции)."""
+    sub = BB_SECTIONS[key].lower()
+    for r in range(1, len(rows) + 1):
+        if sub in _cell(rows, r, 1).strip().lower():
+            for rr in range(r, r + 6):
+                if _cell(rows, rr, 1).strip() == "Business Line":
+                    return rr
+    return None
+
+
+def _bb_cols(rows: list[list[str]], hdr, year: int) -> dict:
+    """month→колонка для нужного года. 2025 — с суффиксом «25», 2026 — bare «Jan»."""
+    out: dict[int, int] = {}
+    if hdr is None:
+        return out
+    width = len(rows[hdr - 1]) if hdr - 1 < len(rows) else 0
+    for c in range(2, width + 1):
+        v = _cell(rows, hdr, c).strip().lower()
+        m = _BB_MON3.get(v[:3])
+        if not m:
+            continue
+        yr = 2025 if "25" in v else 2026
+        if yr == year:
+            out[m] = c
+    return out
+
+
+def _bb_lines(rows: list[list[str]], hdr) -> list[tuple[int, str]]:
+    """(строка, имя линии) от шапки до Total/пустой."""
+    out: list[tuple[int, str]] = []
+    if hdr is None:
+        return out
+    r = hdr + 1
+    while r <= len(rows):
+        a = _cell(rows, r, 1).strip()
+        if a in ("", "Total", "Прирост"):
+            break
+        out.append((r, a))
+        r += 1
+    return out
+
+
+def bb_available_months(rows: list[list[str]], year: int = 2026) -> list[int]:
+    """Месяцы, где по обороту есть данные."""
+    hdr = _bb_header(rows, "turnover")
+    cols = _bb_cols(rows, hdr, year)
+    lines = _bb_lines(rows, hdr)
+    ms = []
+    for m in sorted(cols):
+        tot = sum(parse_ru_number(_cell(rows, r, cols[m])) for r, _ in lines)
+        if tot != 0:
+            ms.append(m)
+    return ms
+
+
+def bb_segment_df(rows: list[list[str]], year: int, month: int) -> pd.DataFrame:
+    """Метрики по бизнес-линиям за (year, month): оборот(тыс USD), маржприбыль(USD),
+    маржинальность, активные клиенты, сделки, средний чек(тыс USD)."""
+    raw = {}
+    for key in ("turnover", "marginal_profit", "active_clients", "deals", "avg_check"):
+        hdr = _bb_header(rows, key)
+        col = _bb_cols(rows, hdr, year).get(month)
+        vals = {}
+        if hdr and col:
+            for r, name in _bb_lines(rows, hdr):
+                vals[name] = parse_ru_number(_cell(rows, r, col))
+        raw[key] = vals
+    recs = []
+    for ln in raw["turnover"]:
+        turn = raw["turnover"].get(ln, 0.0)          # тыс USD
+        mp = raw["marginal_profit"].get(ln, 0.0)     # USD
+        recs.append({
+            "line": ln, "line_ru": BB_LINE_LABELS_RU.get(ln, ln),
+            "turnover": turn, "marg_profit": mp,
+            "marginality": mp / (turn * 1000) if turn else 0.0,
+            "clients": raw["active_clients"].get(ln, 0.0),
+            "deals": raw["deals"].get(ln, 0.0),
+            "avg_check": raw["avg_check"].get(ln, 0.0),
+        })
+    return pd.DataFrame(recs)
+
+
+def bb_monthly_totals(rows: list[list[str]], year: int, months: list[int]) -> dict:
+    """Итоги по месяцам: оборот(тыс USD), маржприбыль(USD), маржинальность."""
+    ht = _bb_header(rows, "turnover"); ct = _bb_cols(rows, ht, year); lt = _bb_lines(rows, ht)
+    hm = _bb_header(rows, "marginal_profit"); cm = _bb_cols(rows, hm, year); lm = _bb_lines(rows, hm)
+    turn = [sum(parse_ru_number(_cell(rows, r, ct[m])) for r, _ in lt) if m in ct else 0.0
+            for m in months]
+    mp = [sum(parse_ru_number(_cell(rows, r, cm[m])) for r, _ in lm) if m in cm else 0.0
+          for m in months]
+    marg = [(mp[i] / (turn[i] * 1000) if turn[i] else 0.0) for i in range(len(months))]
+    return {"turnover": turn, "marg_profit": mp, "marginality": marg}
+
+
 # ============= АГЕНТЫ (лист «Свод по агентам» + листы отдельных агентов) =============
 from config import (AGENT_CLIENTS_START_ROW, AGENT_METRICS,  # noqa: E402
                     AGENTS_DATA_START_ROW, AGENTS_FIRST_MONTH_COL,
