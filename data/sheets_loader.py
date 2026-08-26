@@ -214,9 +214,19 @@ def mon_daily_columns(rows: list[list[str]]) -> list[tuple[int, _dt.date]]:
 
 
 def mon_months_available(rows: list[list[str]]) -> list[int]:
-    """Месяцы, по которым есть дневные данные (по датам в шапке)."""
-    months = sorted({d.month for _, d in mon_daily_columns(rows)})
-    return months
+    """Месяцы с данными: по датам дневных колонок ИЛИ по непустому месячному итогу оборота.
+
+    Устойчиво к правкам листа: если у месяца убрали дневные колонки, но есть месячный
+    итог (или наоборот) — месяц всё равно доступен в выборе.
+    """
+    months = {d.month for _, d in mon_daily_columns(rows)}
+    meta = MON_SUMMARY_ROWS["turnover"]
+    trow = _find_row(rows, meta["row"], meta["label"])
+    for m, c in MON_MONTH_TOTAL_COLS.items():
+        raw = _cell(rows, trow, c).strip()
+        if raw and not raw.startswith("#") and parse_ru_number(raw) != 0:
+            months.add(m)
+    return sorted(months)
 
 
 def mon_summary_daily(rows: list[list[str]], metric: str, month: int) -> list[tuple[_dt.date, float]]:
