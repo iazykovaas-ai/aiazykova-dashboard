@@ -459,11 +459,11 @@ with tab_pp:
         with c1:
             cur_m = st.selectbox("Текущий месяц", list(range(1, 13)),
                                  format_func=lambda x: MONTH_NAMES_RU[x - 1],
-                                 index=TARGET_MONTH - 1, key="ao_pp_cur")
+                                 index=_last_fact - 1, key="ao_pp_cur")
         with c2:
             prev_m = st.selectbox("Сравнить с месяцем", list(range(1, 13)),
                                   format_func=lambda x: MONTH_NAMES_RU[x - 1],
-                                  index=max(0, TARGET_MONTH - 2), key="ao_pp_prev")
+                                  index=max(0, _last_fact - 2), key="ao_pp_prev")
         net_prev = pl_sum("net_profit", prev_m, prev_m, "fact")
         net_cur = pl_sum("net_profit", cur_m, cur_m, "fact")
         steps = []
@@ -509,11 +509,11 @@ with tab_pp:
     with sc1:
         svp_cur = st.selectbox("Текущий месяц (свод)", list(range(1, 13)),
                                format_func=lambda x: MONTH_NAMES_RU[x - 1],
-                               index=TARGET_MONTH - 1, key="ao_pp_svod_cur")
+                               index=_last_fact - 1, key="ao_pp_svod_cur")
     with sc2:
         svp_prev = st.selectbox("Сравнить с месяцем (свод)", list(range(1, 13)),
                                 format_func=lambda x: MONTH_NAMES_RU[x - 1],
-                                index=max(0, TARGET_MONTH - 2), key="ao_pp_svod_prev")
+                                index=max(0, _last_fact - 2), key="ao_pp_svod_prev")
     chart_card_open(
         f"📋 Общий свод · все метрики · {MONTH_NAMES_RU[svp_prev - 1]} → "
         f"{MONTH_NAMES_RU[svp_cur - 1]} {TARGET_YEAR}",
