@@ -14,8 +14,8 @@ from components.styles import (PALETTE, apply, chart_card_close, chart_card_open
                                col_separators, hero, row_separators, style_plotly_2d)
 from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_FULL_METRICS,
                     TARGET_MONTH, TARGET_YEAR)
-from data.sheets_loader import (load_pl_global_raw, pl_value, pl_rows_value,
-                                seg_fact_months,
+from data.sheets_loader import (load_pl_global_raw, pl_last_fact_month, pl_value,
+                                pl_rows_value, seg_fact_months,
                                 seg_margin_budget, seg_margin_fact, seg_margin_total)
 
 st.set_page_config(page_title="Анализ отклонений", page_icon="📊", layout="wide")
@@ -28,6 +28,7 @@ hero("📊 Анализ отклонений",
 render_abbr_expander(PAGE_DEV)
 
 rows = load_pl_global_raw()
+_last_fact = pl_last_fact_month(rows)          # последний закрытый месяц (дефолт периодов)
 
 
 def _md(s: str) -> str:
@@ -196,14 +197,14 @@ with tab_pf:
     # помним выбранный период в URL (?af=&at=) — переживает обновление страницы
     if "ao_from" not in st.session_state:
         try:
-            st.session_state["ao_from"] = int(st.query_params.get("af", 1))
+            st.session_state["ao_from"] = int(st.query_params.get("af", _last_fact))
         except (TypeError, ValueError):
-            st.session_state["ao_from"] = 1
+            st.session_state["ao_from"] = _last_fact
     if "ao_to" not in st.session_state:
         try:
-            st.session_state["ao_to"] = int(st.query_params.get("at", 1))
+            st.session_state["ao_to"] = int(st.query_params.get("at", _last_fact))
         except (TypeError, ValueError):
-            st.session_state["ao_to"] = 1
+            st.session_state["ao_to"] = _last_fact
     with cfrom:
         from_m = st.selectbox("С месяца", list(range(1, 13)),
                               format_func=lambda x: MONTH_NAMES_RU[x - 1], key="ao_from")

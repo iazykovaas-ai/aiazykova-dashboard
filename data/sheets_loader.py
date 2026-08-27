@@ -132,6 +132,15 @@ def pl_series(rows: list[list[str]], metric: str, source: str = "fact",
     return [pl_value(rows, metric, m, source, year) for m in range(1, months + 1)]
 
 
+def pl_last_fact_month(rows: list[list[str]], year: int = 2026) -> int:
+    """Последний месяц с фактическими данными (по обороту, строка Turnover)."""
+    last = 1
+    for m in range(1, 13):
+        if pl_value(rows, "turnover", m, "fact", year) != 0:
+            last = m
+    return last
+
+
 # ============= БИЗНЕС-БЛОК =============
 # Структура листа: каждая таблица начинается со строки с тегом ("Активные клиенты", "Оборот", "Кол-во сделок", "Средний чек", "Маржинальная прибыль", "Маржинальность"),
 # затем шапка месяцев (Jan25 ... Dec26), затем строки по Business Line, заканчивая Total и Прирост.
@@ -452,7 +461,7 @@ def bb_monthly_totals(rows: list[list[str]], year: int, months: list[int]) -> di
 
 # ============= АГЕНТЫ (лист «Свод по агентам» + листы отдельных агентов) =============
 from config import (AGENT_CLIENTS_START_ROW, AGENT_METRICS,  # noqa: E402
-                    AGENTS_DATA_START_ROW, AGENTS_FIRST_MONTH_COL,
+                    AGENTS_DATA_START_ROW, AGENTS_EXCLUDE, AGENTS_FIRST_MONTH_COL,
                     AGENTS_MONTH_BLOCK, AGENTS_SPREADSHEET_ID)
 
 
@@ -491,8 +500,9 @@ def _scan_names(rows: list[list[str]], start_row: int) -> list[tuple[int, str]]:
 
 
 def agents_list(rows: list[list[str]]) -> list[tuple[int, str]]:
-    """(номер_строки, имя агента) на листе «Свод по агентам»."""
-    return _scan_names(rows, AGENTS_DATA_START_ROW)
+    """(номер_строки, имя агента) на листе «Свод по агентам» (без технических строк)."""
+    return [(r, n) for r, n in _scan_names(rows, AGENTS_DATA_START_ROW)
+            if n not in AGENTS_EXCLUDE]
 
 
 def _aggregate_svod(rows: list[list[str]], entries: list[tuple[int, str]],

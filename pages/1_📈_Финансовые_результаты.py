@@ -17,7 +17,8 @@ from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
                                style_plotly_3d, wrap_label)
 from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT,
                     TARGET_MONTH, TARGET_YEAR)
-from data.sheets_loader import load_pl_global_raw, pl_series, pl_value
+from data.sheets_loader import (load_pl_global_raw, pl_last_fact_month,
+                                pl_series, pl_value)
 
 st.set_page_config(page_title="Финансовые результаты", page_icon="📈", layout="wide")
 apply()
@@ -38,10 +39,12 @@ def _qp_int(key, default):
         return default
 
 
+# Дефолт периода — последний закрытый месяц (а не январь)
+_last_fact = pl_last_fact_month(load_pl_global_raw())
 if "period_from" not in st.session_state:
-    st.session_state["period_from"] = _qp_int("pf", 1)
+    st.session_state["period_from"] = _qp_int("pf", _last_fact)
 if "period_to" not in st.session_state:
-    st.session_state["period_to"] = _qp_int("pt", 1)
+    st.session_state["period_to"] = _qp_int("pt", _last_fact)
 with col_from:
     from_m = st.selectbox(
         "С месяца", list(range(1, 13)),
