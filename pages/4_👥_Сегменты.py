@@ -10,6 +10,9 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from components.assistant import render_assistant
+from components.format import (bg_diverging as _bg_marg, md_escape as _md,
+                               num_spaced as _money_txt, qp_int as _qp_int,
+                               usd_spaced as _mfmt)
 from components.glossary import PAGE_SEG, render_abbr_expander
 from components.kpi import format_money
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
@@ -32,18 +35,6 @@ st.info("Данные помесячные из листа **«Бизнес-бл
 render_abbr_expander(PAGE_SEG)
 
 rows = load_business_block_raw()
-
-
-def _md(s: str) -> str:
-    return s.replace("$", "\\$")
-
-
-def _qp_int(key, default):
-    try:
-        return int(st.query_params.get(key, default))
-    except (TypeError, ValueError):
-        return default
-
 
 # ===== Год и месяц (запоминаем в URL ?sy=&sm=) =====
 col_y, col_m = st.columns([1, 2])
@@ -126,7 +117,6 @@ def _bar_h(frame, valcol, colorfn, textfn, xtitle, hovertail):
 
 
 _green = lambda v: PALETTE["success"] if v >= 0 else PALETTE["danger"]
-_money_txt = lambda v: f"{v:,.0f}".replace(",", " ")
 
 # ===== 1. Оборот по сегментам =====
 chart_card_open("💰 Оборот по сегментам", f"{period_label} · USD")
@@ -238,25 +228,6 @@ tbl = df[["line_ru", "clients", "deals", "turnover_usd", "avg_check", "marg_prof
 tbl["avg_check"] = tbl["avg_check"] * 1000            # тыс USD → USD
 tbl.columns = ["Сегмент", "Клиентов", "Сделок", "Оборот", "Средний чек",
                "Маржа", "Маржинальность", "Маржа / клиент"]
-
-
-def _mfmt(v):
-    return f"$ {v:,.0f}".replace(",", " ")
-
-
-def _bg_marg(s):
-    m = s.abs().max() or 1
-    out = []
-    for v in s:
-        if v > 0:
-            a = 0.14 + 0.34 * min(v / m, 1)
-            out.append(f"background-color: rgba(47,217,166,{a:.2f}); color:#EAFBF4;")
-        elif v < 0:
-            a = 0.14 + 0.34 * min(abs(v) / m, 1)
-            out.append(f"background-color: rgba(255,92,122,{a:.2f}); color:#FFECEF;")
-        else:
-            out.append("color:#8A90B8;")
-    return out
 
 
 st.session_state.setdefault("seg_tbl_nonce", 0)

@@ -8,6 +8,8 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from components.assistant import render_assistant
+from components.format import (bg_diverging as _bg_diverging, eff_ru as _eff,
+                               pct_ru as _pct, qp_int as _qp_int, usd_spaced as _m)
 from components.glossary import PAGE_AGENTS, render_abbr_expander
 from components.kpi import format_money
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
@@ -47,13 +49,6 @@ def _fmt_period(v: int) -> str:
     return "Весь период (YTD)" if v == 0 else MONTH_NAMES_RU[v - 1]
 
 
-def _qp_int(key, default):
-    try:
-        return int(st.query_params.get(key, default))
-    except (TypeError, ValueError):
-        return default
-
-
 st.markdown("##### 🗓️ Период")
 if "agents_period" not in st.session_state:
     _saved = _qp_int("am", months[-1] if months else 0)
@@ -70,11 +65,6 @@ mask = (df["turnover"] != 0) | (df["margin"] != 0) | (df["deals"] != 0)
 df = df[mask].copy()
 df["payout"] = -df["agent_fee"]          # выплата агенту (положительная)
 df = df.sort_values("margin", ascending=False).reset_index(drop=True)
-
-
-def _m(v: float) -> str:
-    """USD с пробелами-разрядами (для таблицы; $ безопасен в dataframe)."""
-    return f"$ {v:,.0f}".replace(",", " ")
 
 
 # ===== KPI =====
@@ -143,7 +133,7 @@ else:
 chart_card_close()
 
 # ===== Маржинальность по агентам =====
-chart_card_open("💹 Маржинальность по клиентам агентов",
+chart_card_open("💹 Маржинальность по агентам",
                 "за период · зелёный — прибыльно, красный — убыточно; оборот и маржа — в подсказке")
 sc = df[df["turnover"] > 0].copy().sort_values("marginality", ascending=True)
 if sc.empty:
@@ -174,30 +164,6 @@ else:
 chart_card_close()
 
 # ===== Детальная таблица (с «тепловой» заливкой) =====
-def _pct(v):
-    return f"{v*100:.2f}%".replace(".", ",")
-
-
-def _eff(v):
-    return "—" if pd.isna(v) else f"{v:.1f}×".replace(".", ",")
-
-
-def _bg_diverging(s):
-    """Заливка ячеек столбца: зелёный (плюс) / красный (минус), яркость ∝ величине."""
-    m = s.abs().max() or 1
-    out = []
-    for v in s:
-        if pd.isna(v) or v == 0:
-            out.append("color:#8A90B8;")
-        elif v > 0:
-            a = 0.14 + 0.34 * min(v / m, 1)
-            out.append(f"background-color: rgba(47,217,166,{a:.2f}); color:#EAFBF4;")
-        else:
-            a = 0.14 + 0.34 * min(abs(v) / m, 1)
-            out.append(f"background-color: rgba(255,92,122,{a:.2f}); color:#FFECEF;")
-    return out
-
-
 def _detail_styler(frame, name_col):
     """Стилизованная таблица (Оборот…Эффективность) с тепловой заливкой.
 

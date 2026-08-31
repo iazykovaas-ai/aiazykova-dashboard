@@ -10,10 +10,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from components.assistant import render_assistant
 from components.glossary import PAGE_DEV, render_abbr_expander
 from components.kpi import fmt_kusd
+from components.format import md_escape as _md
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
-                               col_separators, hero, row_separators, style_plotly_2d)
-from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_FULL_METRICS,
-                    TARGET_MONTH, TARGET_YEAR)
+                               col_separators, hero, row_separators, style_plotly_2d,
+                               wrap_label)
+from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_FULL_METRICS, TARGET_YEAR)
 from data.sheets_loader import (load_pl_global_raw, pl_last_fact_month, pl_value,
                                 pl_rows_value, seg_fact_months,
                                 seg_margin_budget, seg_margin_fact, seg_margin_total)
@@ -29,27 +30,6 @@ render_abbr_expander(PAGE_DEV)
 
 rows = load_pl_global_raw()
 _last_fact = pl_last_fact_month(rows)          # последний закрытый месяц (дефолт периодов)
-
-
-def _md(s: str) -> str:
-    """Экранирует $ — иначе markdown трактует $...$ как формулу LaTeX
-    (курсивный шрифт и съеденные пробелы между разрядами)."""
-    return s.replace("$", "\\$")
-
-
-def _wrap(s: str, width: int = 14) -> str:
-    """Переносит длинную подпись на несколько строк (<br>) по словам — для осей графиков."""
-    words = str(s).split()
-    lines, cur = [], ""
-    for w in words:
-        if cur and len(cur) + 1 + len(w) > width:
-            lines.append(cur)
-            cur = w
-        else:
-            cur = f"{cur} {w}".strip()
-    if cur:
-        lines.append(cur)
-    return "<br>".join(lines)
 
 
 def inline_radio(label, options, key):
@@ -101,7 +81,7 @@ def waterfall_bridge(start_label, start_val, steps, end_label, end_val, title, s
     # Ось подписана «тыс. USD» → на столбцах только числа (без $ и k)
     bar_text = [f"{v:,.0f}".replace(",", " ") for v in values]
     fig = go.Figure(go.Waterfall(
-        orientation="v", measure=measures, x=[_wrap(l, 9) for l in labels], y=values,
+        orientation="v", measure=measures, x=[wrap_label(l, 9) for l in labels], y=values,
         text=bar_text,
         textposition="outside", textfont=dict(color=PALETTE["ink"], size=11),
         connector=dict(line=dict(color=PALETTE["line"], width=1)),
@@ -134,7 +114,7 @@ def contrib_bars(steps, title, subtitle):
     # Подпись «(тыс. USD)» в заголовке → на барах только числа (без $ и k)
     bar_text = [f"{d:,.0f}".replace(",", " ") for _, d in items]
     fig = go.Figure(go.Bar(
-        y=[_wrap(l, 20) for l, _ in items], x=[d for _, d in items], orientation="h",
+        y=[wrap_label(l, 20) for l, _ in items], x=[d for _, d in items], orientation="h",
         marker=dict(color=["#2FD9A6" if d >= 0 else "#FF5C7A" for _, d in items], line=dict(width=0)),
         text=bar_text, textposition="outside",
         textfont=dict(color=PALETTE["ink"], size=12),

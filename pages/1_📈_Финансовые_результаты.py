@@ -15,8 +15,8 @@ from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
                                chart_card_open, col_separators, cuboid_mesh, gauge, hero,
                                mom_colors, row_separators, sparkline, style_plotly_2d,
                                style_plotly_3d, wrap_label)
-from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT,
-                    TARGET_MONTH, TARGET_YEAR)
+from components.format import qp_int as _qp_int
+from config import MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT, TARGET_YEAR
 from data.sheets_loader import (load_pl_global_raw, pl_last_fact_month,
                                 pl_series, pl_value)
 
@@ -31,14 +31,6 @@ hero(f"📈 Финансовые результаты · {TARGET_YEAR}",
 st.markdown("##### 📅 Период")
 col_from, col_to = st.columns(2)
 # Запоминаем последний выбранный период в URL (?pf=&pt=) — переживает обновление страницы
-
-def _qp_int(key, default):
-    try:
-        return int(st.query_params.get(key, default))
-    except (TypeError, ValueError):
-        return default
-
-
 # Дефолт периода — последний закрытый месяц (а не январь)
 _last_fact = pl_last_fact_month(load_pl_global_raw())
 if "period_from" not in st.session_state:
