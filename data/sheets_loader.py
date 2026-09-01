@@ -565,6 +565,114 @@ def agent_monthly_series(rows: list[list[str]], name: str, key: str) -> list[flo
     return [parse_ru_number(_cell(rows, target, _agent_col(m, off))) for m in range(1, 13)]
 
 
+# ============= СДЕЛКИ: каналы и продукты (книга RUDA) =============
+from config import (DEALS_CH_LEVEL0, DEALS_CH_LEVEL1, DEALS_CH_MEMO,  # noqa: E402
+                    DEALS_CLIENTS_COL, DEALS_DEALS_COL, DEALS_NAME_COL,
+                    DEALS_NET_MARGIN_ADD, DEALS_NET_PROFIT_ADD, DEALS_PERIOD_MARK,
+                    DEALS_PR_LEVEL0, DEALS_RAW_COLS, DEALS_TOTAL_NAME)
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю каналы сделок…")
+def load_deals_channels_raw() -> list[list[str]]:
+    return _open_sheet("deals_channels").get_all_values()
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю продукты сделок…")
+def load_deals_products_raw() -> list[list[str]]:
+    return _open_sheet("deals_products").get_all_values()
+
+
+def _norm_name(s: str) -> str:
+    """Нормализация имени: неразрывные пробелы, лишние пробелы, регистр не трогаем."""
+    return re.sub(r"\s+", " ", str(s).replace("\xa0", " ")).strip()
+
+
+def _deals_period_starts(rows: list[list[str]]) -> list[tuple[int, str]]:
+    """Строки-заголовки блоков-периодов: [(row, period_label)]. Ищем «Период» в кол. A."""
+    out = []
+    for r in range(1, len(rows) + 1):
+        if _norm_name(_cell(rows, r, 1)) == DEALS_PERIOD_MARK:
+            label = _norm_name(_cell(rows, r, DEALS_NAME_COL))
+            if label:
+                out.append((r, label))
+    return out
+
+
+def _classify(name: str, kind: str) -> tuple[int | str | None, str]:
+    """(level, clean_name). level: 0 верхний, 1 вложенный, 'memo', 'total', None пропуск."""
+    n = _norm_name(name)
+    low = n.lower()
+    if not n or low.startswith("в том числе") or n in ("Продукты", "Каналы привлечения"):
+        return None, n
+    if n.startswith(DEALS_TOTAL_NAME):
+        return "total", n
+    level0 = DEALS_CH_LEVEL0 if kind == "channels" else DEALS_PR_LEVEL0
+    for base in level0:
+        if n.startswith(base):
+            return 0, n
+    if kind == "channels":
+        for base in DEALS_CH_LEVEL1:
+            if n.startswith(base):
+                return 1, n
+        for base in DEALS_CH_MEMO:
+            if low.startswith(base):
+                return "memo", n
+        return None, n
+    # продукты: всё остальное под верхним уровнем — вложенные подтипы
+    return 1, n
+
+
+def _deals_metrics(rows: list[list[str]], r: int) -> dict:
+    """Сырые суммы + пересчитанные уровни дохода для одной строки блока."""
+    raw = {k: parse_ru_number(_cell(rows, r, c)) for k, c in DEALS_RAW_COLS.items()}
+    gross = raw["our_comm"] + raw["fx"]
+    net_margin = gross + sum(raw[k] for k in DEALS_NET_MARGIN_ADD)
+    net_profit = net_margin + sum(raw[k] for k in DEALS_NET_PROFIT_ADD)
+    turn = raw["turnover"]
+    deals = int(parse_ru_number(_cell(rows, r, DEALS_DEALS_COL)))
+    clients = int(parse_ru_number(_cell(rows, r, DEALS_CLIENTS_COL)))
+    return {
+        "clients": clients, "deals": deals,
+        "turnover": turn, "our_comm": raw["our_comm"],
+        "gross": gross, "net_margin": net_margin, "net_profit": net_profit,
+        "gross_pct": gross / turn if turn else 0.0,
+        "net_margin_pct": net_margin / turn if turn else 0.0,
+        "net_profit_pct": net_profit / turn if turn else 0.0,
+        "avg_check": turn / deals if deals else 0.0,
+    }
+
+
+def deals_periods(rows: list[list[str]]) -> list[str]:
+    """Список периодов в порядке листа (напр. ['1 квартал 2026', '2 квартал 2026', 'июл.-26'])."""
+    return [lbl for _, lbl in _deals_period_starts(rows)]
+
+
+def deals_block_df(rows: list[list[str]], kind: str, period: str) -> pd.DataFrame:
+    """Разбор одного периода в DataFrame со строками блока и уровнями (level).
+
+    kind: 'channels' | 'products'. Читает от заголовка периода до первой строки ИТОГО.
+    Уровни дохода фактические (из сырых сумм O:AC), режим переключателя D2 не влияет.
+    """
+    starts = _deals_period_starts(rows)
+    idx = next((i for i, (_, lbl) in enumerate(starts) if lbl == period), None)
+    if idx is None:
+        return pd.DataFrame()
+    r0 = starts[idx][0]
+    r_end = starts[idx + 1][0] - 1 if idx + 1 < len(starts) else len(rows)
+    recs, seen_total = [], False
+    for r in range(r0 + 1, r_end + 1):
+        name = _cell(rows, r, DEALS_NAME_COL)
+        level, clean = _classify(name, kind)
+        if level is None:
+            continue
+        if level == "total":
+            if seen_total:           # второй ИТОГО в блоке — дубль, пропускаем
+                continue
+            seen_total = True
+        recs.append({"name": clean, "level": level, **_deals_metrics(rows, r)})
+    return pd.DataFrame(recs)
+
+
 # ============= СТАБ (на случай отсутствия доступа) =============
 def load_stub(key: str) -> pd.DataFrame:
     """Минимальные демо-данные."""
