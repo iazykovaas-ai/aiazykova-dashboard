@@ -76,13 +76,6 @@ _CSS = """
     }
     [data-testid="stSidebarNav"] ul li:first-child a[aria-current="page"]::after { color: #FFFFFF; }
 
-    /* Последний пункт (Сегменты) — пока в разработке: зачёркиваем родной текст + «(в работе)» */
-    [data-testid="stSidebarNav"] ul li:last-child a span { text-decoration: line-through; }
-    [data-testid="stSidebarNav"] ul li:last-child a::after {
-        content: " (в работе)";
-        opacity: 0.75;
-    }
-
     /* ===== Заголовки ===== */
     h1, h2, h3, h4 { color: #F2F3FA; letter-spacing: -0.02em; }
     h1 { font-weight: 700; }
