@@ -565,111 +565,175 @@ def agent_monthly_series(rows: list[list[str]], name: str, key: str) -> list[flo
     return [parse_ru_number(_cell(rows, target, _agent_col(m, off))) for m in range(1, 13)]
 
 
-# ============= СДЕЛКИ: каналы и продукты (книга RUDA) =============
-from config import (DEALS_CH_LEVEL0, DEALS_CH_LEVEL1, DEALS_CH_MEMO,  # noqa: E402
-                    DEALS_CLIENTS_COL, DEALS_DEALS_COL, DEALS_NAME_COL,
-                    DEALS_NET_MARGIN_ADD, DEALS_NET_PROFIT_ADD, DEALS_PERIOD_MARK,
-                    DEALS_PR_LEVEL0, DEALS_RAW_COLS, DEALS_TOTAL_NAME)
+# ============= СДЕЛКИ: посделочная вкладка «Сделки» (книга RUDA) =============
+from config import (DEALS_CH_BANK, DEALS_CH_ORDER, DEALS_COL,  # noqa: E402
+                    DEALS_DATA_START, DEALS_GROSS_ADD, DEALS_LIQUIDITY_CHANNEL,
+                    DEALS_MONEY, DEALS_NET_MARGIN_ADD, DEALS_NET_PROFIT_ADD,
+                    DEALS_PR_ORDER)
+
+_MONTH_RU_SHORT = {"янв": 1, "фев": 2, "мар": 3, "апр": 4, "май": 5, "июн": 6,
+                   "июл": 7, "авг": 8, "сен": 9, "окт": 10, "ноя": 11, "дек": 12}
+_MONTH_RU_FULL = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
 
 
-@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю каналы сделок…")
-def load_deals_channels_raw() -> list[list[str]]:
-    return _open_sheet("deals_channels").get_all_values()
-
-
-@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю продукты сделок…")
-def load_deals_products_raw() -> list[list[str]]:
-    return _open_sheet("deals_products").get_all_values()
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю сделки…")
+def load_deals_sdelki_raw() -> list[list[str]]:
+    return _open_sheet("deals_sdelki").get_all_values()
 
 
 def _norm_name(s: str) -> str:
-    """Нормализация имени: неразрывные пробелы, лишние пробелы, регистр не трогаем."""
+    """Нормализация текста: неразрывные пробелы, лишние пробелы; регистр не трогаем."""
     return re.sub(r"\s+", " ", str(s).replace("\xa0", " ")).strip()
 
 
-def _deals_period_starts(rows: list[list[str]]) -> list[tuple[int, str]]:
-    """Строки-заголовки блоков-периодов: [(row, period_label)]. Ищем «Период» в кол. A."""
-    out = []
-    for r in range(1, len(rows) + 1):
-        if _norm_name(_cell(rows, r, 1)) == DEALS_PERIOD_MARK:
-            label = _norm_name(_cell(rows, r, DEALS_NAME_COL))
-            if label:
-                out.append((r, label))
-    return out
+def _month_key(label: str) -> tuple[int, int]:
+    """'авг.-26' → (2026, 8) для сортировки. Неизвестное → (0,0)."""
+    m = re.match(r"([а-я]{3})\.?-?(\d{2})", label.lower())
+    if not m:
+        return (0, 0)
+    return (2000 + int(m.group(2)), _MONTH_RU_SHORT.get(m.group(1), 0))
 
 
-def _classify(name: str, kind: str) -> tuple[int | str | None, str]:
-    """(level, clean_name). level: 0 верхний, 1 вложенный, 'memo', 'total', None пропуск."""
-    n = _norm_name(name)
-    low = n.lower()
-    if not n or low.startswith("в том числе") or n in ("Продукты", "Каналы привлечения"):
-        return None, n
-    if n.startswith(DEALS_TOTAL_NAME):
-        return "total", n
-    level0 = DEALS_CH_LEVEL0 if kind == "channels" else DEALS_PR_LEVEL0
-    for base in level0:
-        if n.startswith(base):
-            return 0, n
-    if kind == "channels":
-        for base in DEALS_CH_LEVEL1:
-            if n.startswith(base):
-                return 1, n
-        for base in DEALS_CH_MEMO:
-            if low.startswith(base):
-                return "memo", n
-        return None, n
-    # продукты: всё остальное под верхним уровнем — вложенные подтипы
-    return 1, n
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def deals_frame() -> pd.DataFrame:
+    """Посделочная база в DataFrame: месяц, клиент, продукт/подтип, канал/подкатегория,
+    все денежные компоненты и посчитанные уровни дохода (валовая/чистая маржа, ЧП)."""
+    rows = load_deals_sdelki_raw()
+    recs = []
+    for row in rows[DEALS_DATA_START - 1:]:
+        def g(col1: int) -> str:
+            i = col1 - 1
+            return row[i] if 0 <= i < len(row) else ""
+        month = _norm_name(g(DEALS_COL["month"]))
+        if not month:
+            continue
+        rec = {
+            "month": month,
+            "client": _norm_name(g(DEALS_COL["client_comb"])) or _norm_name(g(DEALS_COL["client"])),
+            "product": _norm_name(g(DEALS_COL["product"])),
+            "subtype": _norm_name(g(DEALS_COL["subtype"])),
+            "channel": _norm_name(g(DEALS_COL["channel"])),
+            "channel_sub": _norm_name(g(DEALS_COL["channel_sub"])),
+            "sale": _norm_name(g(DEALS_COL["sale"])).lower(),
+        }
+        for k, c in DEALS_MONEY.items():
+            rec[k] = parse_ru_number(g(c))
+        recs.append(rec)
+    df = pd.DataFrame(recs)
+    if df.empty:
+        return df
+    df["gross"] = df[DEALS_GROSS_ADD].sum(axis=1)
+    df["net_margin"] = df["gross"] + df[DEALS_NET_MARGIN_ADD].sum(axis=1)
+    df["net_profit"] = df["net_margin"] + df[DEALS_NET_PROFIT_ADD].sum(axis=1)
+    return df
 
 
-def _deals_metrics(rows: list[list[str]], r: int) -> dict:
-    """Сырые суммы + пересчитанные уровни дохода для одной строки блока."""
-    raw = {k: parse_ru_number(_cell(rows, r, c)) for k, c in DEALS_RAW_COLS.items()}
-    gross = raw["our_comm"] + raw["fx"]
-    net_margin = gross + sum(raw[k] for k in DEALS_NET_MARGIN_ADD)
-    net_profit = net_margin + sum(raw[k] for k in DEALS_NET_PROFIT_ADD)
-    turn = raw["turnover"]
-    deals = int(parse_ru_number(_cell(rows, r, DEALS_DEALS_COL)))
-    clients = int(parse_ru_number(_cell(rows, r, DEALS_CLIENTS_COL)))
+def deals_months() -> list[str]:
+    """Список месяцев (сырые метки листа) в хронологическом порядке."""
+    df = deals_frame()
+    if df.empty:
+        return []
+    return sorted(df["month"].unique(), key=_month_key)
+
+
+def deals_month_label(raw: str) -> str:
+    """'авг.-26' → 'Август 2026' (для подписей)."""
+    y, m = _month_key(raw)
+    return f"{_MONTH_RU_FULL[m - 1]} {y}" if m else raw
+
+
+def deals_period_label(months: list[str]) -> str:
+    """Подпись выбранного диапазона: один месяц → 'Август 2026', диапазон → 'Июнь–Август 2026'."""
+    if not months:
+        return "—"
+    ms = sorted(months, key=_month_key)
+    if len(ms) == 1:
+        return deals_month_label(ms[0])
+    y0, m0 = _month_key(ms[0])
+    y1, m1 = _month_key(ms[-1])
+    if y0 == y1:
+        return f"{_MONTH_RU_FULL[m0 - 1]}–{_MONTH_RU_FULL[m1 - 1]} {y1}"
+    return f"{deals_month_label(ms[0])} – {deals_month_label(ms[-1])}"
+
+
+def _agg_metrics(d: pd.DataFrame) -> dict:
+    """Агрегаты + уровни дохода для набора сделок."""
+    turn = d["turnover"].sum()
+    gross = d["gross"].sum()
+    nm = d["net_margin"].sum()
+    npf = d["net_profit"].sum()
+    deals = len(d)
     return {
-        "clients": clients, "deals": deals,
-        "turnover": turn, "our_comm": raw["our_comm"],
-        "gross": gross, "net_margin": net_margin, "net_profit": net_profit,
+        "clients": int(d["client"].nunique()), "deals": deals,
+        "turnover": turn, "our_comm": d["our_comm"].sum(),
+        "gross": gross, "net_margin": nm, "net_profit": npf,
         "gross_pct": gross / turn if turn else 0.0,
-        "net_margin_pct": net_margin / turn if turn else 0.0,
-        "net_profit_pct": net_profit / turn if turn else 0.0,
+        "net_margin_pct": nm / turn if turn else 0.0,
+        "net_profit_pct": npf / turn if turn else 0.0,
         "avg_check": turn / deals if deals else 0.0,
     }
 
 
-def deals_periods(rows: list[list[str]]) -> list[str]:
-    """Список периодов в порядке листа (напр. ['1 квартал 2026', '2 квартал 2026', 'июл.-26'])."""
-    return [lbl for _, lbl in _deals_period_starts(rows)]
+def _ordered_groups(values, order: list[str]) -> list[str]:
+    """Значения в порядке order, затем прочие (по алфавиту)."""
+    present = list(dict.fromkeys(values))
+    known = [x for x in order if x in present]
+    rest = sorted(x for x in present if x not in order)
+    return known + rest
 
 
-def deals_block_df(rows: list[list[str]], kind: str, period: str) -> pd.DataFrame:
-    """Разбор одного периода в DataFrame со строками блока и уровнями (level).
+def deals_agg(kind: str, months: list[str]) -> pd.DataFrame:
+    """Иерархия по каналам/продуктам за выбранные месяцы.
 
-    kind: 'channels' | 'products'. Читает от заголовка периода до первой строки ИТОГО.
-    Уровни дохода фактические (из сырых сумм O:AC), режим переключателя D2 не влияет.
+    Строки: level 0 — верхний уровень (полное разбиение), level 1 — вложенная
+    детализация (подкатегории банка / подтипы продукта), 'total' — ИТОГО.
+    Каналы исключают ликвидность (снабжение, не продажи); продукты — включают.
     """
-    starts = _deals_period_starts(rows)
-    idx = next((i for i, (_, lbl) in enumerate(starts) if lbl == period), None)
-    if idx is None:
-        return pd.DataFrame()
-    r0 = starts[idx][0]
-    r_end = starts[idx + 1][0] - 1 if idx + 1 < len(starts) else len(rows)
-    recs, seen_total = [], False
-    for r in range(r0 + 1, r_end + 1):
-        name = _cell(rows, r, DEALS_NAME_COL)
-        level, clean = _classify(name, kind)
-        if level is None:
-            continue
-        if level == "total":
-            if seen_total:           # второй ИТОГО в блоке — дубль, пропускаем
-                continue
-            seen_total = True
-        recs.append({"name": clean, "level": level, **_deals_metrics(rows, r)})
+    df = deals_frame()
+    d = df[df["month"].isin(months)]
+    recs = []
+    if kind == "channels":
+        d = d[d["channel"] != DEALS_LIQUIDITY_CHANNEL]
+        for ch in _ordered_groups(d["channel"], DEALS_CH_ORDER):
+            sub = d[d["channel"] == ch]
+            recs.append({"name": ch, "level": 0, **_agg_metrics(sub)})
+            if ch == DEALS_CH_BANK:
+                for sc in _ordered_groups(sub[sub["channel_sub"] != ""]["channel_sub"], []):
+                    ssub = sub[sub["channel_sub"] == sc]
+                    recs.append({"name": sc, "level": 1, **_agg_metrics(ssub)})
+    else:
+        for pr in _ordered_groups(d["product"], DEALS_PR_ORDER):
+            sub = d[d["product"] == pr]
+            recs.append({"name": pr, "level": 0, **_agg_metrics(sub)})
+            subtypes = sub.groupby("subtype")["turnover"].sum().sort_values(ascending=False)
+            for sc in subtypes.index:
+                if not sc:
+                    continue
+                recs.append({"name": sc, "level": 1, **_agg_metrics(sub[sub["subtype"] == sc])})
+    recs.append({"name": "ИТОГО", "level": "total", **_agg_metrics(d)})
+    return pd.DataFrame(recs)
+
+
+def deals_monthly_totals(kind: str, months: list[str]) -> pd.DataFrame:
+    """Итоги по каждому месяцу диапазона (для графика динамики)."""
+    df = deals_frame()
+    recs = []
+    for m in sorted(months, key=_month_key):
+        d = df[df["month"] == m]
+        if kind == "channels":
+            d = d[d["channel"] != DEALS_LIQUIDITY_CHANNEL]
+        recs.append({"month": m, "label": deals_month_label(m), **_agg_metrics(d)})
+    return pd.DataFrame(recs)
+
+
+def deals_sale_split(months: list[str]) -> pd.DataFrame:
+    """Первичные vs повторные сделки (по столбцу «Продажа») за период, без ликвидности."""
+    df = deals_frame()
+    d = df[df["month"].isin(months) & (df["channel"] != DEALS_LIQUIDITY_CHANNEL)]
+    recs = []
+    for tag in ("первичная", "повторная"):
+        recs.append({"sale": tag, **_agg_metrics(d[d["sale"] == tag])})
     return pd.DataFrame(recs)
 
 

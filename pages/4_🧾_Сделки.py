@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
@@ -16,62 +17,66 @@ from components.kpi import format_money
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
                                col_separators, hero, row_separators, style_plotly_2d,
                                wrap_label)
-from data.sheets_loader import (deals_block_df, deals_periods,
-                                load_deals_channels_raw, load_deals_products_raw)
+from data.sheets_loader import (deals_agg, deals_month_label, deals_monthly_totals,
+                                deals_months, deals_period_label, deals_sale_split)
 
 st.set_page_config(page_title="Сделки", page_icon="🧾", layout="wide")
 apply()
 render_assistant()
 
 hero("🧾 Сделки: каналы и продукты",
-     "Посделочная сборка: как пришёл клиент (каналы) и что за сделка (продукты)")
+     "Посделочно из вкладки «Сделки»: помесячно, период — любой диапазон месяцев")
 
 st.info(
-    "Данные из посделочного реестра **RUDA** (книга «Каналы/Продукты»). Показаны **фактические** "
-    "цифры (без гипотетических «скрытых надбавок» режима 2). Уровни дохода: **валовая маржа** = "
-    "наша комиссия + курсовая; **чистая маржа** = − комиссия агента и займы; **чистая прибыль** = "
-    "− банки, субагент, PL 5470, ФОТ процессинга, внутрибанковские конвертации. "
-    "Накладные (аренда, налоги, топ-менеджмент и пр.) сюда **не** входят."
+    "Данные считаются **посделочно** из вкладки «Сделки» (книга RUDA) и агрегируются по выбранным "
+    "месяцам. Показаны **фактические** уровни дохода: **валовая маржа** = наша комиссия + курсовая; "
+    "**чистая маржа** = − комиссия агента и займы; **чистая прибыль** = − банки, субагент, PL 5470, "
+    "ФОТ процессинга, внутрибанковские конвертации. Накладные (аренда, налоги и пр.) сюда **не** входят. "
+    "В разрезе каналов ликвидность исключена (это снабжение, а не продажи)."
 )
 
 render_abbr_expander(PAGE_DEALS)
 
-# ===== Переключатели: канал/продукт и период =====
+months_all = deals_months()
+if not months_all:
+    st.warning("Не удалось прочитать вкладку «Сделки».")
+    st.stop()
+
+# ===== Переключатели: разрез + период (диапазон месяцев) =====
 col_v, col_p = st.columns([1, 2])
 with col_v:
     if "deals_view" not in st.session_state:
         st.session_state["deals_view"] = "Продукты" if _qp_int("dv", 0) == 1 else "Каналы"
     view = st.radio("Разрез", ["Каналы", "Продукты"], horizontal=True, key="deals_view")
 st.query_params["dv"] = "1" if view == "Продукты" else "0"
-
 kind = "channels" if view == "Каналы" else "products"
-rows = load_deals_channels_raw() if kind == "channels" else load_deals_products_raw()
-periods = deals_periods(rows)
-if not periods:
-    st.warning("Не удалось прочитать периоды из источника.")
-    st.stop()
 
+last = len(months_all) - 1
 with col_p:
-    default_idx = len(periods) - 1                       # последний период (июль)
-    if "deals_period" not in st.session_state:
-        pi = _qp_int("dp", default_idx)
-        st.session_state["deals_period"] = periods[pi] if 0 <= pi < len(periods) else periods[default_idx]
-    elif st.session_state["deals_period"] not in periods:
-        st.session_state["deals_period"] = periods[default_idx]
-    period = st.selectbox("Период", periods, key="deals_period")
-st.query_params["dp"] = str(periods.index(period))
+    if "deals_range" not in st.session_state:
+        i0 = _qp_int("df", last)
+        i1 = _qp_int("dt", last)
+        i0 = i0 if 0 <= i0 <= last else last
+        i1 = i1 if 0 <= i1 <= last else last
+        st.session_state["deals_range"] = (months_all[min(i0, i1)], months_all[max(i0, i1)])
+    if len(months_all) >= 2:
+        rng = st.select_slider("Период (потяните концы для диапазона)", options=months_all,
+                               format_func=deals_month_label, key="deals_range")
+        m_from, m_to = rng
+    else:
+        m_from = m_to = months_all[0]
+        st.caption(deals_month_label(m_from))
 
-df = deals_block_df(rows, kind, period)
-if df.empty:
-    st.warning("Нет данных за период.")
-    st.stop()
+i_from, i_to = months_all.index(m_from), months_all.index(m_to)
+sel_months = months_all[i_from:i_to + 1]
+st.query_params["df"] = str(i_from)
+st.query_params["dt"] = str(i_to)
+period = deals_period_label(sel_months)
 
-lvl0 = df[df["level"] == 0].copy()                       # верхний уровень (полное разбиение)
-lvl1 = df[df["level"] == 1].copy()
+df = deals_agg(kind, sel_months)
+lvl0 = df[df["level"] == 0].copy()
 total = df[df["level"] == "total"]
-memo = df[df["level"] == "memo"].copy()
-tot = total.iloc[0] if len(total) else lvl0.sum(numeric_only=True)
-
+tot = total.iloc[0]
 what = "каналов" if kind == "channels" else "продуктов"
 
 # ===== KPI =====
@@ -83,7 +88,9 @@ c4.metric("Валовая маржа", format_money(tot["gross"]))
 c5.metric("Чистая маржа", format_money(tot["net_margin"]))
 c6.metric("Чистая прибыль", format_money(tot["net_profit"]))
 c7.metric("Маржинальность (ЧП)", f"{tot['net_profit_pct'] * 100:.2f}%".replace(".", ","))
-st.caption(f"Период: **{period}** · {len(lvl0)} {what} верхнего уровня")
+n_mon = len(sel_months)
+st.caption(f"Период: **{period}** ({n_mon} мес.) · {len(lvl0)} {what} верхнего уровня · "
+           f"клиенты — уникальные за период")
 st.markdown("")
 
 _green = lambda v: PALETTE["success"] if v >= 0 else PALETTE["danger"]
@@ -100,26 +107,17 @@ def _bar_h(frame, valcol, colorfn, textfn, xtitle, hovertail, pct=False):
         customdata=fr[["turnover", "net_profit", "clients", "deals"]],
         hovertemplate="<b>%{y}</b><br>" + hovertail + "<extra></extra>",
     ))
-    style_plotly_2d(fig, height=max(300, 46 * len(fr)))
+    style_plotly_2d(fig, height=max(280, 48 * len(fr)))
     fig.update_layout(
         xaxis=dict(title=xtitle, showgrid=True, zeroline=True, showticklabels=False,
-                   ticksuffix="%" if pct else "",
-                   zerolinecolor="rgba(255,92,122,0.55)"),
+                   ticksuffix="%" if pct else "", zerolinecolor="rgba(255,92,122,0.55)"),
         yaxis=dict(showgrid=False, tickfont=dict(size=12)),
         shapes=row_separators(len(fr)), margin=dict(l=10, r=95, t=10, b=10),
     )
     return fig
 
 
-# короткие подписи для мостиков/выводов
-def _clean(name):
-    return (name.replace(" (клиентский) всего, в т.ч.:", "").replace(" (клиентский)", "")
-                .replace(", всего, в т. ч.:", "").replace(" итого, в том числе", ""))
-
-
-lvl0["short"] = lvl0["name"].map(_clean)
-
-# ===== 1. Оборот по разрезу =====
+# ===== 1. Оборот =====
 chart_card_open(f"💰 Оборот по {what}", f"{period} · USD")
 fig = _bar_h(lvl0, "turnover", lambda v: "#36C5F0", _money_txt, "Оборот, USD",
              "Оборот: %{x:,.0f} $<br>Чистая прибыль: %{customdata[1]:,.0f} $<br>"
@@ -127,30 +125,29 @@ fig = _bar_h(lvl0, "turnover", lambda v: "#36C5F0", _money_txt, "Оборот, U
 st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 _t = lvl0.sort_values("turnover", ascending=False).iloc[0]
 st.markdown(_md(
-    f"🔎 **Вывод.** Больше всего оборота даёт **{_clean(_t['name'])}** "
-    f"({format_money(_t['turnover'])}, {_t['turnover'] / tot['turnover'] * 100:.0f}% от общего "
+    f"🔎 **Вывод.** Больше всего оборота даёт **{_t['name']}** "
+    f"({format_money(_t['turnover'])}, {_t['turnover'] / tot['turnover'] * 100:.0f}% от "
     f"{format_money(tot['turnover'])})."
 ))
 chart_card_close()
 
-# ===== 2. Чистая прибыль по разрезу =====
+# ===== 2. Чистая прибыль =====
 chart_card_open(f"📈 Чистая прибыль по {what}", f"{period} · USD · после ФОТ и конвертаций")
 fig = _bar_h(lvl0, "net_profit", _green, _money_txt, "Чистая прибыль, USD",
              "Чистая прибыль: %{x:,.0f} $<br>Оборот: %{customdata[0]:,.0f} $")
 st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
-_p = lvl0.sort_values("net_profit", ascending=False)
-_lead = _p.iloc[0]
+_lead = lvl0.sort_values("net_profit", ascending=False).iloc[0]
 _neg = lvl0[lvl0["net_profit"] < 0]
-neg_txt = (f" В минусе: **{', '.join(_neg['short'])}** "
+neg_txt = (f" В минусе: **{', '.join(_neg['name'])}** "
            f"({format_money(_neg['net_profit'].sum())})." if len(_neg) else "")
+lead_share = _lead["net_profit"] / tot["net_profit"] * 100 if tot["net_profit"] else 0
 st.markdown(_md(
-    f"🔎 **Вывод.** Основную прибыль приносит **{_clean(_lead['name'])}** "
-    f"({format_money(_lead['net_profit'])}, {_lead['net_profit'] / tot['net_profit'] * 100:.0f}% "
-    f"итога)." + neg_txt
+    f"🔎 **Вывод.** Основную прибыль приносит **{_lead['name']}** "
+    f"({format_money(_lead['net_profit'])}, {lead_share:.0f}% итога)." + neg_txt
 ))
 chart_card_close()
 
-# ===== 3. Маржинальность (ЧП%) по разрезу =====
+# ===== 3. Маржинальность (ЧП%) =====
 avg = tot["net_profit_pct"]
 chart_card_open(f"🎯 Маржинальность по {what}",
                 f"{period} · чистая прибыль ÷ оборот · пунктир — средняя {avg * 100:.2f}%")
@@ -162,7 +159,7 @@ figm = go.Figure(go.Bar(
     textposition="outside", textfont=dict(color=PALETTE["ink"], size=11),
     hovertemplate="<b>%{y}</b><br>Маржинальность (ЧП): %{x:.2f}%<extra></extra>",
 ))
-style_plotly_2d(figm, height=max(300, 46 * len(fr)))
+style_plotly_2d(figm, height=max(280, 48 * len(fr)))
 figm.update_layout(
     xaxis=dict(title="Маржинальность (ЧП), %", showgrid=True, zeroline=True, ticksuffix="%",
                showticklabels=False, zerolinecolor="rgba(255,92,122,0.55)"),
@@ -176,79 +173,65 @@ st.plotly_chart(figm, width="stretch", config={"displayModeBar": False})
 _best = lvl0.loc[lvl0["net_profit_pct"].idxmax()]
 _worst = lvl0.loc[lvl0["net_profit_pct"].idxmin()]
 st.markdown(_md(
-    f"🔎 **Вывод.** Самый прибыльный на доллар оборота — **{_clean(_best['name'])}** "
-    f"({_best['net_profit_pct'] * 100:.2f}%), самый слабый — **{_clean(_worst['name'])}** "
+    f"🔎 **Вывод.** Самый прибыльный на доллар оборота — **{_best['name']}** "
+    f"({_best['net_profit_pct'] * 100:.2f}%), самый слабый — **{_worst['name']}** "
     f"({_worst['net_profit_pct'] * 100:.2f}%). Средняя по компании — {avg * 100:.2f}%."
 ))
 chart_card_close()
 
-# ===== 4. Динамика по периодам (итоги) =====
-chart_card_open("📅 Динамика по периодам", "оборот (столбцы) и маржинальность ЧП (линия)")
-per_turn, per_pct, per_np = [], [], []
-for p in periods:
-    tdf = deals_block_df(rows, kind, p)
-    tt = tdf[tdf["level"] == "total"]
-    tr = tt.iloc[0] if len(tt) else tdf[tdf["level"] == 0].sum(numeric_only=True)
-    per_turn.append(tr["turnover"])
-    per_np.append(tr["net_profit"])
-    per_pct.append(tr["net_profit_pct"] * 100)
+# ===== 4. Динамика по месяцам (весь год, выбранные — ярко) =====
+chart_card_open("📅 Динамика по месяцам", "оборот (столбцы) и маржинальность ЧП (линия) · выделен период")
+mt = deals_monthly_totals(kind, months_all)
+xs = [deals_month_label(m).replace(" 2026", "").replace(" 2025", "") for m in mt["month"]]
+sel_set = set(sel_months)
+bar_colors = ["#36C5F0" if m in sel_set else "rgba(54,197,240,0.28)" for m in mt["month"]]
 figd = make_subplots(specs=[[{"secondary_y": True}]])
 figd.add_trace(go.Bar(
-    x=periods, y=per_turn, name="Оборот", marker_color="#36C5F0",
-    text=[format_money(v) for v in per_turn], textposition="outside",
-    textfont=dict(color="#36C5F0", size=11),
-    customdata=per_np,
+    x=xs, y=mt["turnover"], name="Оборот", marker_color=bar_colors,
+    text=[format_money(v) for v in mt["turnover"]], textposition="outside",
+    textfont=dict(color="#8A90B8", size=10),
+    customdata=mt["net_profit"],
     hovertemplate="<b>%{x}</b><br>Оборот: %{y:,.0f} $<br>ЧП: %{customdata:,.0f} $<extra></extra>",
 ), secondary_y=False)
 figd.add_trace(go.Scatter(
-    x=periods, y=per_pct, name="Маржинальность ЧП", mode="lines+markers+text",
+    x=xs, y=mt["net_profit_pct"] * 100, name="Маржинальность ЧП", mode="lines+markers+text",
     line=dict(color="#F5B544", width=3), marker=dict(size=8, color="#F5B544"),
-    text=[f"{v:.2f}%".replace(".", ",") for v in per_pct], textposition="top center",
-    textfont=dict(color="#F5B544", size=11),
+    text=[f"{v * 100:.2f}%".replace(".", ",") for v in mt["net_profit_pct"]],
+    textposition="top center", textfont=dict(color="#F5B544", size=10),
     hovertemplate="<b>%{x}</b><br>Маржинальность ЧП: %{y:.2f}%<extra></extra>",
 ), secondary_y=True)
-style_plotly_2d(figd, height=360)
+style_plotly_2d(figd, height=380)
 figd.update_layout(
     margin=dict(l=10, r=10, t=10, b=10),
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     yaxis=dict(title="Оборот, USD", showgrid=True, showticklabels=False),
     yaxis2=dict(title="ЧП, %", showgrid=False, ticksuffix="%"),
-    shapes=col_separators(len(periods)),
+    shapes=col_separators(len(xs)),
 )
 st.plotly_chart(figd, width="stretch", config={"displayModeBar": False})
-st.caption("⚠️ Кварталы и месяц (июль) — разного масштаба: сравнивайте маржинальность (линию), "
-           "а не высоту столбцов.")
+if len(mt) >= 2:
+    d_turn = (mt["turnover"].iloc[-1] / mt["turnover"].iloc[-2] - 1) * 100 if mt["turnover"].iloc[-2] else 0
+    d_marg = (mt["net_profit_pct"].iloc[-1] - mt["net_profit_pct"].iloc[-2]) * 100
+    dir_t = "вырос" if d_turn >= 0 else "снизился"
+    st.markdown(_md(
+        f"🔎 **Вывод.** В последнем месяце ({xs[-1]}) оборот {dir_t} на **{abs(d_turn):.0f}%** "
+        f"к предыдущему, маржинальность ЧП **{d_marg:+.2f} п.п.** "
+        f"({mt['net_profit_pct'].iloc[-1] * 100:.2f}%)."
+    ))
 chart_card_close()
 
 # ===== 5. Сводная таблица с иерархией =====
 chart_card_open(f"📋 Сводка по {what}", f"{period} · вложенные строки — с отступом · заливка ЧП%")
-order = []
-if kind == "channels":
-    for _, r0 in lvl0.iterrows():
-        order.append((r0["name"], r0, 0))
-        if r0["name"].startswith("Банковский"):
-            for _, r1 in lvl1.iterrows():
-                order.append(("    " + r1["name"], r1, 1))
-else:
-    # продукты: level-1 подтипы идут сразу после своего level-0 (порядок листа сохранён в df)
-    seq = df[df["level"].isin([0, 1])]
-    for _, r in seq.iterrows():
-        nm = r["name"] if r["level"] == 0 else "    " + r["name"]
-        order.append((nm, r, r["level"]))
-
-import pandas as pd
-tbl = pd.DataFrame([{
-    "Строка": nm,
-    "Клиентов": int(r["clients"]),
-    "Сделок": int(r["deals"]),
-    "Оборот": r["turnover"],
-    "Средний чек": r["avg_check"],
-    "Наша комиссия": r["our_comm"],
-    "Валовая маржа": r["gross"],
-    "Чистая маржа": r["net_margin"],
-    "Чистая прибыль": r["net_profit"],
-    "ЧП, %": r["net_profit_pct"],
-} for nm, r, _ in order])
+rows_tbl = []
+for _, r in df[df["level"].isin([0, 1])].iterrows():
+    nm = r["name"] if r["level"] == 0 else "    " + r["name"]
+    rows_tbl.append({
+        "Строка": nm, "Клиентов": int(r["clients"]), "Сделок": int(r["deals"]),
+        "Оборот": r["turnover"], "Средний чек": r["avg_check"], "Наша комиссия": r["our_comm"],
+        "Валовая маржа": r["gross"], "Чистая маржа": r["net_margin"],
+        "Чистая прибыль": r["net_profit"], "ЧП, %": r["net_profit_pct"],
+    })
+tbl = pd.DataFrame(rows_tbl)
 
 st.session_state.setdefault("deals_tbl_nonce", 0)
 if st.button("↺ Сбросить сортировку и фильтры", key="deals_tbl_reset"):
@@ -264,19 +247,22 @@ styler = (
 st.dataframe(styler, width="stretch", hide_index=True,
              height=min(560, 44 + 35 * len(tbl)),
              key=f"deals_tbl_{st.session_state['deals_tbl_nonce']}")
+st.caption("ℹ️ Клиентов по строкам — уникальные внутри строки; сумма по строкам может превышать "
+           "ИТОГО (один клиент бывает в нескольких каналах/продуктах).")
 
-# первичные/повторные (только для каналов)
-if kind == "channels" and len(memo) >= 2:
-    prim = memo[memo["name"].str.lower().str.startswith("первич")]
-    rep = memo[memo["name"].str.lower().str.startswith("повтор")]
-    if len(prim) and len(rep):
+# первичные/повторные (в разрезе каналов — без ликвидности)
+if kind == "channels":
+    sp = deals_sale_split(sel_months)
+    prim = sp[sp["sale"] == "первичная"]
+    rep = sp[sp["sale"] == "повторная"]
+    if len(prim) and len(rep) and prim.iloc[0]["turnover"] > 0:
         pr, rp = prim.iloc[0], rep.iloc[0]
         st.markdown(_md(
-            f"🔎 **Первичные vs повторные.** Новые клиенты (первая сделка) дали "
-            f"**{format_money(pr['turnover'])}** оборота ({pr['turnover'] / tot['turnover'] * 100:.1f}%) "
-            f"при маржинальности {pr['net_profit_pct'] * 100:.2f}%; повторные — "
-            f"**{format_money(rp['turnover'])}** при {rp['net_profit_pct'] * 100:.2f}%. "
-            f"Первая сделка обычно мельче (средний чек {format_money(pr['avg_check'])} против "
-            f"{format_money(rp['avg_check'])}) — она тестовая."
+            f"🔎 **Первичные vs повторные.** Новые клиенты (первая сделка в периоде) дали "
+            f"**{format_money(pr['turnover'])}** оборота "
+            f"({pr['turnover'] / tot['turnover'] * 100:.1f}%) при маржинальности "
+            f"{pr['net_profit_pct'] * 100:.2f}%; повторные — **{format_money(rp['turnover'])}** "
+            f"при {rp['net_profit_pct'] * 100:.2f}%. Первая сделка обычно мельче "
+            f"(средний чек {format_money(pr['avg_check'])} против {format_money(rp['avg_check'])})."
         ))
 chart_card_close()
