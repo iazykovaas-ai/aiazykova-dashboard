@@ -62,8 +62,8 @@ ABBR: dict[str, tuple[str, str]] = {
 
 # Какие термины показывать на каждой странице (только те, что реально встречаются).
 PAGE_FIN = ["Revenue", "GP", "OPEX", "GA", "FX", "OperatingProfit", "PBT", "Net",
-            "Turnover", "marginality", "Waterfall", "Treemap", "YoY", "MoM", "YTD",
-            "pp", "units", "PL"]
+            "Turnover", "marginality", "Waterfall", "Treemap", "YoY", "MoM",
+            "units", "PL"]
 PAGE_DEV = ["GP", "OPEX", "PBT", "Net", "Waterfall", "vs", "nm", "pp", "units", "PL"]
 PAGE_MON = ["MoM", "OAG", "marginality", "MP", "avgcheck", "Turnover", "units"]
 PAGE_SEG = ["marginality", "MP", "avgcheck", "Turnover", "units"]
