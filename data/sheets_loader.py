@@ -93,36 +93,78 @@ def _cell(rows: list[list[str]], r: int, c: int) -> str:
     return row[c - 1]
 
 
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def pl_month_maps() -> dict:
+    """Карты {месяц: колонка} блоков PL GLOBAL — определяются ПО ШАПКЕ (маркеры «-MM-» в
+    строке 2), а не хардкодом. Лист периодически «пакуют» (у закрытых месяцев убирают
+    M2M-колонки), из-за чего фиксированные номера съезжают и факт/бюджет читаются не из тех
+    столбцов. Возвращает {'fact2025','fact2026','budget2026': {month: col}}.
+
+    Логика: актуалы (Jan-2025…Dec-2026) идут одним непрерывным рядом (годы разделяем по сбросу
+    номера месяца 12→1, допускаем одиночные M2M-колонки как разрыв ≤2); бюджет — отдельный
+    12-месячный ряд. Что не распозналось — берётся из config (fallback в _pl_col)."""
+    rows = load_pl_global_raw()
+    r2 = rows[1] if len(rows) > 1 else []
+    cols = []
+    for c in range(len(r2)):
+        m = re.match(r"-(\d{2})-", str(r2[c]).strip())
+        if m:
+            cols.append((c + 1, int(m.group(1))))       # (1-индекс колонки, номер месяца)
+    runs, cur = [], []
+    for col, mm in cols:
+        if cur and col - cur[-1][0] > 2:                 # разрыв >2 → новый блок
+            runs.append(cur); cur = []
+        cur.append((col, mm))
+    if cur:
+        runs.append(cur)
+    maps: dict[str, dict[int, int]] = {}
+    if runs:
+        actuals = max(runs, key=len)                     # самый длинный ряд = актуалы
+        years, seg = [], []
+        for col, mm in actuals:
+            if seg and mm < seg[-1][1]:                  # 12 → 1: начался новый год
+                years.append(seg); seg = []
+            seg.append((col, mm))
+        if seg:
+            years.append(seg)
+        if years:
+            maps["fact2026"] = {mm: col for col, mm in years[-1]}
+        if len(years) >= 2:
+            maps["fact2025"] = {mm: col for col, mm in years[-2]}
+        for run in runs:                                 # бюджет — 12-мес. ряд не из актуалов
+            if run is not actuals and len({mm for _, mm in run}) == 12:
+                maps["budget2026"] = {mm: col for col, mm in run}
+                break
+    return maps
+
+
+def _pl_col(source: str, month: int, year: int) -> int:
+    """Колонка блока с фолбэком на config, если авто-разбор шапки не сработал."""
+    maps = pl_month_maps()
+    if source == "budget":
+        return maps.get("budget2026", {}).get(month) or PL_BUDGET_2026_COLS[month]
+    if source == "fact" and year == 2026:
+        return maps.get("fact2026", {}).get(month) or PL_FACT_2026_COLS[month]
+    if source == "fact" and year == 2025:
+        return maps.get("fact2025", {}).get(month) or PL_FACT_2025_COLS[month]
+    raise ValueError(f"Unknown source/year: {source}/{year}")
+
+
 def pl_value(rows: list[list[str]], metric: str, month: int, source: str = "fact",
              year: int = 2026) -> float:
     """Получить значение метрики P&L за конкретный месяц.
 
     metric  — ключ из PL_ROWS ('revenue', 'gross_profit', 'net_profit', ...)
-    month   — 1..12
-    source  — 'fact' | 'budget'
-    year    — 2025 | 2026 (для факта)
+    month   — 1..12 · source — 'fact' | 'budget' · year — 2025 | 2026 (для факта)
+    Колонка определяется по шапке листа (pl_month_maps), устойчиво к перестройке.
     """
-    row = PL_ROWS[metric]
-    if source == "budget":
-        col = PL_BUDGET_2026_COLS[month]
-    elif source == "fact" and year == 2026:
-        col = PL_FACT_2026_COLS[month]
-    elif source == "fact" and year == 2025:
-        col = PL_FACT_2025_COLS[month]
-    else:
-        raise ValueError(f"Unknown source/year: {source}/{year}")
-    return parse_ru_number(_cell(rows, row, col))
+    return parse_ru_number(_cell(rows, PL_ROWS[metric], _pl_col(source, month, year)))
 
 
 def pl_rows_value(rows: list[list[str]], row_list, month: int,
                   source: str = "fact", year: int = 2026) -> float:
     """Сумма значений по нескольким строкам PL за месяц (для статей из 2 частей)."""
-    if source == "budget":
-        col = PL_BUDGET_2026_COLS[month]
-    elif year == 2026:
-        col = PL_FACT_2026_COLS[month]
-    else:
-        col = PL_FACT_2025_COLS[month]
+    col = _pl_col(source, month, year)
     return sum(parse_ru_number(_cell(rows, r, col)) for r in row_list)
 
 
