@@ -568,8 +568,8 @@ def agent_monthly_series(rows: list[list[str]], name: str, key: str) -> list[flo
 # ============= СДЕЛКИ: посделочная вкладка «Сделки» (книга RUDA) =============
 from config import (DEALS_CH_BANK, DEALS_CH_ORDER, DEALS_COL,  # noqa: E402
                     DEALS_DATA_START, DEALS_GROSS_ADD, DEALS_LIQUIDITY_CHANNEL,
-                    DEALS_MONEY, DEALS_NET_MARGIN_ADD, DEALS_NET_PROFIT_ADD,
-                    DEALS_PR_ORDER)
+                    DEALS_LIQUIDITY_PRODUCT, DEALS_MONEY, DEALS_NET_MARGIN_ADD,
+                    DEALS_NET_PROFIT_ADD, DEALS_PR_ORDER)
 
 _MONTH_RU_SHORT = {"янв": 1, "фев": 2, "мар": 3, "апр": 4, "май": 5, "июн": 6,
                    "июл": 7, "авг": 8, "сен": 9, "окт": 10, "ноя": 11, "дек": 12}
@@ -683,18 +683,23 @@ def _ordered_groups(values, order: list[str]) -> list[str]:
     return known + rest
 
 
+def _client_only(d: pd.DataFrame) -> pd.DataFrame:
+    """Только КЛИЕНТСКИЕ сделки: исключаем ликвидность по любому маркеру
+    (канал «(ликвидность)» или продукт «Ликвидность»)."""
+    return d[(d["channel"] != DEALS_LIQUIDITY_CHANNEL) & (d["product"] != DEALS_LIQUIDITY_PRODUCT)]
+
+
 def deals_agg(kind: str, months: list[str]) -> pd.DataFrame:
-    """Иерархия по каналам/продуктам за выбранные месяцы.
+    """Иерархия по каналам/продуктам за выбранные месяцы (только клиентские сделки).
 
     Строки: level 0 — верхний уровень (полное разбиение), level 1 — вложенная
     детализация (подкатегории банка / подтипы продукта), 'total' — ИТОГО.
-    Каналы исключают ликвидность (снабжение, не продажи); продукты — включают.
+    Ликвидность исключена в обоих разрезах → итоги каналов и продуктов совпадают.
     """
     df = deals_frame()
-    d = df[df["month"].isin(months)]
+    d = _client_only(df[df["month"].isin(months)])
     recs = []
     if kind == "channels":
-        d = d[d["channel"] != DEALS_LIQUIDITY_CHANNEL]
         for ch in _ordered_groups(d["channel"], DEALS_CH_ORDER):
             sub = d[d["channel"] == ch]
             recs.append({"name": ch, "level": 0, **_agg_metrics(sub)})
@@ -716,21 +721,23 @@ def deals_agg(kind: str, months: list[str]) -> pd.DataFrame:
 
 
 def deals_monthly_totals(kind: str, months: list[str]) -> pd.DataFrame:
-    """Итоги по каждому месяцу диапазона (для графика динамики)."""
+    """Итоги по каждому месяцу (для графика динамики), только клиентские сделки.
+
+    kind оставлен для совместимости — ликвидность исключена в обоих разрезах,
+    поэтому помесячные итоги каналов и продуктов совпадают.
+    """
     df = deals_frame()
     recs = []
     for m in sorted(months, key=_month_key):
-        d = df[df["month"] == m]
-        if kind == "channels":
-            d = d[d["channel"] != DEALS_LIQUIDITY_CHANNEL]
+        d = _client_only(df[df["month"] == m])
         recs.append({"month": m, "label": deals_month_label(m), **_agg_metrics(d)})
     return pd.DataFrame(recs)
 
 
 def deals_sale_split(months: list[str]) -> pd.DataFrame:
-    """Первичные vs повторные сделки (по столбцу «Продажа») за период, без ликвидности."""
+    """Первичные vs повторные клиентские сделки (по столбцу «Продажа») за период."""
     df = deals_frame()
-    d = df[df["month"].isin(months) & (df["channel"] != DEALS_LIQUIDITY_CHANNEL)]
+    d = _client_only(df[df["month"].isin(months)])
     recs = []
     for tag in ("первичная", "повторная"):
         recs.append({"sale": tag, **_agg_metrics(d[d["sale"] == tag])})

@@ -32,7 +32,7 @@ st.info(
     "месяцам. Показаны **фактические** уровни дохода: **валовая маржа** = наша комиссия + курсовая; "
     "**чистая маржа** = − комиссия агента и займы; **чистая прибыль** = − банки, субагент, PL 5470, "
     "ФОТ процессинга, внутрибанковские конвертации. Накладные (аренда, налоги и пр.) сюда **не** входят. "
-    "В разрезе каналов ликвидность исключена (это снабжение, а не продажи)."
+    "**Ликвидность (поставщики) исключена везде** — смотрим только на клиентские сделки."
 )
 
 render_abbr_expander(PAGE_DEALS)
@@ -250,19 +250,18 @@ st.dataframe(styler, width="stretch", hide_index=True,
 st.caption("ℹ️ Клиентов по строкам — уникальные внутри строки; сумма по строкам может превышать "
            "ИТОГО (один клиент бывает в нескольких каналах/продуктах).")
 
-# первичные/повторные (в разрезе каналов — без ликвидности)
-if kind == "channels":
-    sp = deals_sale_split(sel_months)
-    prim = sp[sp["sale"] == "первичная"]
-    rep = sp[sp["sale"] == "повторная"]
-    if len(prim) and len(rep) and prim.iloc[0]["turnover"] > 0:
-        pr, rp = prim.iloc[0], rep.iloc[0]
-        st.markdown(_md(
-            f"🔎 **Первичные vs повторные.** Новые клиенты (первая сделка в периоде) дали "
-            f"**{format_money(pr['turnover'])}** оборота "
-            f"({pr['turnover'] / tot['turnover'] * 100:.1f}%) при маржинальности "
-            f"{pr['net_profit_pct'] * 100:.2f}%; повторные — **{format_money(rp['turnover'])}** "
-            f"при {rp['net_profit_pct'] * 100:.2f}%. Первая сделка обычно мельче "
-            f"(средний чек {format_money(pr['avg_check'])} против {format_money(rp['avg_check'])})."
-        ))
+# первичные vs повторные клиентские сделки
+sp = deals_sale_split(sel_months)
+prim = sp[sp["sale"] == "первичная"]
+rep = sp[sp["sale"] == "повторная"]
+if len(prim) and len(rep) and prim.iloc[0]["turnover"] > 0:
+    pr, rp = prim.iloc[0], rep.iloc[0]
+    st.markdown(_md(
+        f"🔎 **Первичные vs повторные.** Новые клиенты (первая сделка в периоде) дали "
+        f"**{format_money(pr['turnover'])}** оборота "
+        f"({pr['turnover'] / tot['turnover'] * 100:.1f}%) при маржинальности "
+        f"{pr['net_profit_pct'] * 100:.2f}%; повторные — **{format_money(rp['turnover'])}** "
+        f"при {rp['net_profit_pct'] * 100:.2f}%. Первая сделка обычно мельче "
+        f"(средний чек {format_money(pr['avg_check'])} против {format_money(rp['avg_check'])})."
+    ))
 chart_card_close()
