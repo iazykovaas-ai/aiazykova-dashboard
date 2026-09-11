@@ -53,16 +53,16 @@ kind = "channels" if view == "Каналы" else "products"
 
 last = len(months_all) - 1
 with col_p:
-    if "deals_range" not in st.session_state:
-        i0 = _qp_int("df", last)
-        i1 = _qp_int("dt", last)
+    if len(months_all) >= 2:
+        # дефолт из URL (?df=&dt=); value кортежем → слайдер работает в режиме ДИАПАЗОНА
+        i0 = _qp_int("df", last); i1 = _qp_int("dt", last)
         i0 = i0 if 0 <= i0 <= last else last
         i1 = i1 if 0 <= i1 <= last else last
-        st.session_state["deals_range"] = (months_all[min(i0, i1)], months_all[max(i0, i1)])
-    if len(months_all) >= 2:
+        default_range = (months_all[min(i0, i1)], months_all[max(i0, i1)])
         rng = st.select_slider("Период (потяните концы для диапазона)", options=months_all,
-                               format_func=deals_month_label, key="deals_range")
-        m_from, m_to = rng
+                               value=default_range, format_func=deals_month_label,
+                               key="deals_range")
+        m_from, m_to = rng if isinstance(rng, (list, tuple)) else (rng, rng)
     else:
         m_from = m_to = months_all[0]
         st.caption(deals_month_label(m_from))
