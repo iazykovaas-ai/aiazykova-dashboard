@@ -229,6 +229,59 @@ _CSS = """
     ::-webkit-scrollbar-track { background: #0A0E20; }
     ::-webkit-scrollbar-thumb { background: #2A3360; border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: #3A4680; }
+
+    /* ===== Интерактивные контролы выбора: заметная подсветка ===== */
+    /* Подпись над контролом — ярче + акцентная полоска слева */
+    [data-testid="stWidgetLabel"] > label,
+    [data-testid="stWidgetLabel"] label p {
+        color: #D6D9F2 !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stWidgetLabel"]:not(:empty) {
+        border-left: 3px solid rgba(123, 111, 240, 0.85);
+        padding-left: 9px;
+        margin-bottom: 2px;
+    }
+
+    /* Поля выбора/ввода: сиреневая рамка + мягкое свечение */
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div,
+    [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
+    [data-testid="stDateInput"] [data-baseweb="input"],
+    [data-testid="stNumberInput"] [data-baseweb="input"],
+    [data-testid="stTextInput"] [data-baseweb="input"] {
+        background: rgba(123, 111, 240, 0.08) !important;
+        border: 1.5px solid rgba(123, 111, 240, 0.55) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 0 12px rgba(123, 111, 240, 0.10);
+        transition: border-color .18s ease, box-shadow .18s ease;
+    }
+    /* Наведение / фокус — усиливаем свечение */
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
+    [data-testid="stMultiSelect"] [data-baseweb="select"] > div:hover,
+    [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
+    [data-testid="stMultiSelect"] [data-baseweb="select"] > div:focus-within,
+    [data-testid="stDateInput"] [data-baseweb="input"]:focus-within,
+    [data-testid="stNumberInput"] [data-baseweb="input"]:focus-within,
+    [data-testid="stTextInput"] [data-baseweb="input"]:focus-within {
+        border-color: rgba(123, 111, 240, 0.95) !important;
+        box-shadow: 0 0 0 3px rgba(123, 111, 240, 0.22) !important;
+    }
+
+    /* Radio (тип/разрез): акцентная рамка вокруг группы опций */
+    [data-testid="stRadio"] [role="radiogroup"] {
+        background: rgba(123, 111, 240, 0.06);
+        border: 1px solid rgba(123, 111, 240, 0.35);
+        border-radius: 10px;
+        padding: 6px 12px;
+    }
+    [data-testid="stRadio"] [role="radiogroup"]:hover {
+        border-color: rgba(123, 111, 240, 0.60);
+    }
+
+    /* Slider / select_slider (период): подсветка бегунков */
+    [data-testid="stSlider"] [role="slider"] {
+        box-shadow: 0 0 0 4px rgba(123, 111, 240, 0.25) !important;
+    }
 </style>
 """
 
