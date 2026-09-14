@@ -230,32 +230,32 @@ _CSS = """
     ::-webkit-scrollbar-thumb { background: #2A3360; border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: #3A4680; }
 
-    /* ===== Интерактивные контролы выбора: заметная подсветка ===== */
+    /* ===== Интерактивные контролы выбора: яркая подсветка ===== */
     /* Подпись над контролом — ярче + акцентная полоска слева */
     [data-testid="stWidgetLabel"] > label,
     [data-testid="stWidgetLabel"] label p {
-        color: #D6D9F2 !important;
-        font-weight: 600 !important;
+        color: #EAE7FF !important;
+        font-weight: 700 !important;
     }
     [data-testid="stWidgetLabel"]:not(:empty) {
-        border-left: 3px solid rgba(123, 111, 240, 0.85);
+        border-left: 4px solid #7B6FF0;
         padding-left: 9px;
-        margin-bottom: 2px;
+        margin-bottom: 3px;
     }
 
-    /* Поля выбора/ввода: сиреневая рамка + мягкое свечение */
+    /* Поля выбора/ввода: яркая сиреневая рамка + постоянное свечение */
     [data-testid="stSelectbox"] [data-baseweb="select"] > div,
     [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
     [data-testid="stDateInput"] [data-baseweb="input"],
     [data-testid="stNumberInput"] [data-baseweb="input"],
     [data-testid="stTextInput"] [data-baseweb="input"] {
-        background: rgba(123, 111, 240, 0.08) !important;
-        border: 1.5px solid rgba(123, 111, 240, 0.55) !important;
+        background: rgba(123, 111, 240, 0.14) !important;
+        border: 2px solid rgba(123, 111, 240, 0.90) !important;
         border-radius: 10px !important;
-        box-shadow: 0 0 12px rgba(123, 111, 240, 0.10);
+        box-shadow: 0 0 0 1px rgba(123, 111, 240, 0.25), 0 0 16px rgba(123, 111, 240, 0.22);
         transition: border-color .18s ease, box-shadow .18s ease;
     }
-    /* Наведение / фокус — усиливаем свечение */
+    /* Наведение / фокус — свечение ещё ярче */
     [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
     [data-testid="stMultiSelect"] [data-baseweb="select"] > div:hover,
     [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
@@ -263,24 +263,44 @@ _CSS = """
     [data-testid="stDateInput"] [data-baseweb="input"]:focus-within,
     [data-testid="stNumberInput"] [data-baseweb="input"]:focus-within,
     [data-testid="stTextInput"] [data-baseweb="input"]:focus-within {
-        border-color: rgba(123, 111, 240, 0.95) !important;
-        box-shadow: 0 0 0 3px rgba(123, 111, 240, 0.22) !important;
+        border-color: #8E82FF !important;
+        box-shadow: 0 0 0 3px rgba(123, 111, 240, 0.35), 0 0 22px rgba(123, 111, 240, 0.30) !important;
     }
+    /* Стрелка выпадающего списка — акцентом */
+    [data-testid="stSelectbox"] svg,
+    [data-testid="stMultiSelect"] svg { fill: #B7AEFF !important; }
 
-    /* Radio (тип/разрез): акцентная рамка вокруг группы опций */
+    /* Radio (тип/разрез): яркая рамка вокруг группы опций */
     [data-testid="stRadio"] [role="radiogroup"] {
-        background: rgba(123, 111, 240, 0.06);
-        border: 1px solid rgba(123, 111, 240, 0.35);
+        background: rgba(123, 111, 240, 0.12);
+        border: 2px solid rgba(123, 111, 240, 0.70);
         border-radius: 10px;
-        padding: 6px 12px;
+        padding: 6px 14px;
+        box-shadow: 0 0 14px rgba(123, 111, 240, 0.16);
     }
     [data-testid="stRadio"] [role="radiogroup"]:hover {
-        border-color: rgba(123, 111, 240, 0.60);
+        border-color: #8E82FF;
+        box-shadow: 0 0 18px rgba(123, 111, 240, 0.26);
     }
 
-    /* Slider / select_slider (период): подсветка бегунков */
+    /* Slider / select_slider (период): яркие бегунки */
     [data-testid="stSlider"] [role="slider"] {
-        box-shadow: 0 0 0 4px rgba(123, 111, 240, 0.25) !important;
+        box-shadow: 0 0 0 5px rgba(123, 111, 240, 0.35) !important;
+    }
+
+    /* ===== KPI-метрики: значение не должно обрезаться ===== */
+    [data-testid="stMetricValue"] {
+        font-size: clamp(1.05rem, 1.7vw, 1.7rem) !important;
+        line-height: 1.15 !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: normal !important;
+    }
+    [data-testid="stMetricValue"] > div { overflow: visible !important; }
+    [data-testid="stMetricLabel"] { overflow: visible !important; }
+    [data-testid="stMetricLabel"] p {
+        font-size: 0.78rem !important;
+        white-space: normal !important;
     }
 </style>
 """
