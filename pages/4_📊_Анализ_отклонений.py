@@ -12,9 +12,8 @@ from components.glossary import PAGE_DEV, render_abbr_expander
 from components.kpi import fmt_kusd
 from components.format import md_escape as _md
 from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
-                               col_separators, hero, row_separators, style_plotly_2d,
-                               wrap_label)
-from config import (MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_FULL_METRICS, TARGET_YEAR)
+                               hero, row_separators, style_plotly_2d, wrap_label)
+from config import MONTH_NAMES_RU, PL_FULL_METRICS, TARGET_YEAR
 from data.sheets_loader import (load_pl_global_raw, pl_last_fact_month, pl_value,
                                 pl_rows_value, seg_fact_months,
                                 seg_margin_budget, seg_margin_fact, seg_margin_total)

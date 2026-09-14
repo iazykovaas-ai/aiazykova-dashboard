@@ -11,10 +11,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from components.assistant import render_assistant
 from components.glossary import PAGE_FIN, render_abbr_expander
 from components.kpi import fmt_kusd, fmt_pct
-from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
-                               chart_card_open, col_separators, cuboid_mesh, gauge, hero,
-                               mom_colors, row_separators, sparkline, style_plotly_2d,
-                               style_plotly_3d, wrap_label)
+from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
+                               col_separators, gauge, hero, mom_colors, row_separators,
+                               sparkline, style_plotly_2d, wrap_label)
 from components.format import qp_int as _qp_int
 from config import MONTH_NAMES_RU, MONTH_NAMES_SHORT, PL_TABLE_LAYOUT, TARGET_YEAR
 from data.sheets_loader import (load_pl_global_raw, pl_last_fact_month,

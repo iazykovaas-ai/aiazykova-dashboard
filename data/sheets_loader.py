@@ -7,8 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from config import (CACHE_TTL_SECONDS, PL_BUDGET_2026_COLS, PL_FACT_2025_COLS,
-                    PL_FACT_2026_COLS, PL_ROWS, SERVICE_ACCOUNT_FILE,
-                    SHEETS, SPREADSHEET_ID)
+                    PL_FACT_2026_COLS, PL_ROWS, SERVICE_ACCOUNT_FILE, SHEETS)
 
 
 def _get_client():
@@ -67,12 +66,6 @@ def _open_sheet(sheet_key: str):
 def load_pl_global_raw() -> list[list[str]]:
     """Возвращает все ячейки PL GLOBAL как сырой список списков."""
     ws = _open_sheet("pl_global")
-    return ws.get_all_values()
-
-
-@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю Бизнес-блок…")
-def load_business_block_raw() -> list[list[str]]:
-    ws = _open_sheet("business_block")
     return ws.get_all_values()
 
 
@@ -181,55 +174,6 @@ def pl_last_fact_month(rows: list[list[str]], year: int = 2026) -> int:
         if pl_value(rows, "turnover", m, "fact", year) != 0:
             last = m
     return last
-
-
-# ============= БИЗНЕС-БЛОК =============
-# Структура листа: каждая таблица начинается со строки с тегом ("Активные клиенты", "Оборот", "Кол-во сделок", "Средний чек", "Маржинальная прибыль", "Маржинальность"),
-# затем шапка месяцев (Jan25 ... Dec26), затем строки по Business Line, заканчивая Total и Прирост.
-
-BB_TABLES = {
-    "active_clients": {"label": "Активные клиенты", "row_start": 4},   # шапка на строке 4, данные с 5
-    "turnover": {"label": "Оборот", "row_start": 41},                  # шапка на 41, данные с 42
-    "deals_count": {"label": "Кол-во сделок", "row_start": 84},
-    "avg_check": {"label": "Средний чек", "row_start": 102},
-    "marginal_profit": {"label": "Маржинальная прибыль", "row_start": 125},
-    "marginality": {"label": "Маржинальность", "row_start": 144},
-}
-
-# Business Lines (порядок такой же, как в листе)
-BUSINESS_LINES = ["Bank opt_import", "Direct opt_import", "Bank import", "Direct import",
-                  "Exchange", "Export", "Partner", "Special", "Dealing", "Sber", "Sberexp"]
-
-# В шапке таблицы колонки: A=Business Line, B..M = Jan25..Dec25, N..Y = Jan26..Dec26
-# 1-индекс: B=2 ... M=13 (2025), N=14 ... Y=25 (2026)
-BB_COL_2025 = {m: 1 + m for m in range(1, 13)}    # Jan25=2, Dec25=13
-BB_COL_2026 = {m: 13 + m for m in range(1, 13)}   # Jan26=14, Dec26=25
-
-
-def bb_value(rows: list[list[str]], table: str, line: str, month: int, year: int) -> float:
-    """Значение из таблицы Бизнес-блок для конкретной бизнес-линии, месяца, года."""
-    header_row = BB_TABLES[table]["row_start"]
-    # Найдём строку с нужной линией ниже шапки (в пределах следующих 20 строк)
-    target_row = None
-    for r in range(header_row + 1, header_row + 25):
-        if _cell(rows, r, 1).strip() == line:
-            target_row = r
-            break
-    if target_row is None:
-        return 0.0
-    col = (BB_COL_2025 if year == 2025 else BB_COL_2026)[month]
-    return parse_ru_number(_cell(rows, target_row, col))
-
-
-def bb_dataframe(rows: list[list[str]], table: str, year: int = 2026) -> pd.DataFrame:
-    """Полная таблица: строки=бизнес-линии, колонки=месяцы."""
-    cols = BB_COL_2025 if year == 2025 else BB_COL_2026
-    out: dict[str, list[float]] = {}
-    for line in BUSINESS_LINES:
-        out[line] = [bb_value(rows, table, line, m, year) for m in range(1, 13)]
-    df = pd.DataFrame(out, index=list(range(1, 13))).T
-    df.index.name = "Business Line"
-    return df
 
 
 # ============= МОНИТОРИНГ (по дате закрытия сделки) =============
@@ -397,108 +341,6 @@ def seg_fact_months() -> list:
     raw = load_fact_forecast_raw()
     return [m for m, col in SEG_FACT_COL.items()
             if parse_ru_number(_cell(raw, SEG_MARGIN_TOTAL_ROW, col)) != 0]
-
-
-# ============= СЕГМЕНТЫ (устойчивый ридер «Бизнес-блока») =============
-from config import BB_LINE_LABELS_RU, BB_SECTIONS  # noqa: E402
-
-_BB_MON3 = {"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-            "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
-
-
-def _bb_header(rows: list[list[str]], key: str):
-    """Строка-шапка «Business Line» таблицы key (ищем по подстроке заголовка секции)."""
-    sub = BB_SECTIONS[key].lower()
-    for r in range(1, len(rows) + 1):
-        if sub in _cell(rows, r, 1).strip().lower():
-            for rr in range(r, r + 6):
-                if _cell(rows, rr, 1).strip() == "Business Line":
-                    return rr
-    return None
-
-
-def _bb_cols(rows: list[list[str]], hdr, year: int) -> dict:
-    """month→колонка для нужного года. 2025 — с суффиксом «25», 2026 — bare «Jan»."""
-    out: dict[int, int] = {}
-    if hdr is None:
-        return out
-    width = len(rows[hdr - 1]) if hdr - 1 < len(rows) else 0
-    for c in range(2, width + 1):
-        v = _cell(rows, hdr, c).strip().lower()
-        m = _BB_MON3.get(v[:3])
-        if not m:
-            continue
-        yr = 2025 if "25" in v else 2026
-        if yr == year:
-            out[m] = c
-    return out
-
-
-def _bb_lines(rows: list[list[str]], hdr) -> list[tuple[int, str]]:
-    """(строка, имя линии) от шапки до Total/пустой."""
-    out: list[tuple[int, str]] = []
-    if hdr is None:
-        return out
-    r = hdr + 1
-    while r <= len(rows):
-        a = _cell(rows, r, 1).strip()
-        if a in ("", "Total", "Прирост"):
-            break
-        out.append((r, a))
-        r += 1
-    return out
-
-
-def bb_available_months(rows: list[list[str]], year: int = 2026) -> list[int]:
-    """Месяцы, где по обороту есть данные."""
-    hdr = _bb_header(rows, "turnover")
-    cols = _bb_cols(rows, hdr, year)
-    lines = _bb_lines(rows, hdr)
-    ms = []
-    for m in sorted(cols):
-        tot = sum(parse_ru_number(_cell(rows, r, cols[m])) for r, _ in lines)
-        if tot != 0:
-            ms.append(m)
-    return ms
-
-
-def bb_segment_df(rows: list[list[str]], year: int, month: int) -> pd.DataFrame:
-    """Метрики по бизнес-линиям за (year, month): оборот(тыс USD), маржприбыль(USD),
-    маржинальность, активные клиенты, сделки, средний чек(тыс USD)."""
-    raw = {}
-    for key in ("turnover", "marginal_profit", "active_clients", "deals", "avg_check"):
-        hdr = _bb_header(rows, key)
-        col = _bb_cols(rows, hdr, year).get(month)
-        vals = {}
-        if hdr and col:
-            for r, name in _bb_lines(rows, hdr):
-                vals[name] = parse_ru_number(_cell(rows, r, col))
-        raw[key] = vals
-    recs = []
-    for ln in raw["turnover"]:
-        turn = raw["turnover"].get(ln, 0.0)          # тыс USD
-        mp = raw["marginal_profit"].get(ln, 0.0)     # USD
-        recs.append({
-            "line": ln, "line_ru": BB_LINE_LABELS_RU.get(ln, ln),
-            "turnover": turn, "marg_profit": mp,
-            "marginality": mp / (turn * 1000) if turn else 0.0,
-            "clients": raw["active_clients"].get(ln, 0.0),
-            "deals": raw["deals"].get(ln, 0.0),
-            "avg_check": raw["avg_check"].get(ln, 0.0),
-        })
-    return pd.DataFrame(recs)
-
-
-def bb_monthly_totals(rows: list[list[str]], year: int, months: list[int]) -> dict:
-    """Итоги по месяцам: оборот(тыс USD), маржприбыль(USD), маржинальность."""
-    ht = _bb_header(rows, "turnover"); ct = _bb_cols(rows, ht, year); lt = _bb_lines(rows, ht)
-    hm = _bb_header(rows, "marginal_profit"); cm = _bb_cols(rows, hm, year); lm = _bb_lines(rows, hm)
-    turn = [sum(parse_ru_number(_cell(rows, r, ct[m])) for r, _ in lt) if m in ct else 0.0
-            for m in months]
-    mp = [sum(parse_ru_number(_cell(rows, r, cm[m])) for r, _ in lm) if m in cm else 0.0
-          for m in months]
-    marg = [(mp[i] / (turn[i] * 1000) if turn[i] else 0.0) for i in range(len(months))]
-    return {"turnover": turn, "marg_profit": mp, "marginality": marg}
 
 
 # ============= АГЕНТЫ (лист «Свод по агентам» + листы отдельных агентов) =============
@@ -818,40 +660,3 @@ def deals_monthly_by_group(kind: str, months: list[str], valcol: str = "turnover
             row[gname] = dm[dm[col] == gname][valcol].sum()
         recs.append(row)
     return pd.DataFrame(recs), groups
-
-
-# ============= СТАБ (на случай отсутствия доступа) =============
-def load_stub(key: str) -> pd.DataFrame:
-    """Минимальные демо-данные."""
-    if key == "pl":
-        return pd.DataFrame({
-            "Направление": ["Import", "Export", "Conversion", "Exchange", "Special"],
-            "Выручка": [58e6, 42e6, 28e6, 14e6, 6e6],
-            "Себестоимость": [38e6, 28e6, 18e6, 9e6, 4e6],
-            "Маржа": [20e6, 14e6, 10e6, 5e6, 2e6],
-        })
-    if key == "plan_fact":
-        return pd.DataFrame({
-            "Месяц": ["Январь", "Февраль", "Март", "Апрель"],
-            "План": [45e6, 48e6, 50e6, 52e6],
-            "Факт": [47.5e6, 46e6, 51e6, 0],
-        })
-    if key == "liquidity":
-        return pd.DataFrame({
-            "Срок": ["T+0", "T+1", "T+2"],
-            "Потребность, USD": [1.2e6, 0.8e6, 0.45e6],
-            "Доступно, USD": [0.9e6, 0.75e6, 0.6e6],
-        })
-    if key == "clients":
-        return pd.DataFrame({
-            "Тип": ["Import", "Export", "Exchange", "Special", "Conversion"],
-            "Кол-во": [28, 19, 12, 9, 7],
-            "Оборот, млн $": [58, 42, 14, 22, 28],
-        })
-    return pd.DataFrame()
-
-
-def load(key: str, use_stub: bool = True) -> pd.DataFrame:
-    if use_stub:
-        return load_stub(key)
-    return load_stub(key)

@@ -1,7 +1,5 @@
 from pathlib import Path
 
-ROOT = Path(__file__).parent
-
 SERVICE_ACCOUNT_FILE = Path(r"C:\Users\User\.gcp\claude-sheets.json")
 # Email сервис-аккаунта (доступ к таблицам):
 # claude-mcp@claude-sheets-494613.iam.gserviceaccount.com
@@ -21,8 +19,6 @@ AGENTS_SPREADSHEET_ID = "1EEHoHBZvmMX60zAw6d6RmpFNAZn20e0h8OAfdPeS6aI"
 # Книга «RUDA» — посделочная сборка: каналы привлечения и продукты (по периодам)
 DEALS_SPREADSHEET_ID = "1LGl30eaOWWikD0nMmN44rxqhYmW5E5huFdSAtHpbXag"
 
-# Последний закрытый месяц для дашборда (1=Jan ... 12=Dec)
-TARGET_MONTH = 4   # Apr
 TARGET_YEAR = 2026
 MONTH_NAMES_RU = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
                   "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
@@ -32,7 +28,6 @@ MONTH_NAMES_SHORT = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн",
 # Маппинг страниц дашборда на источники
 SHEETS = {
     "pl_global": {"spreadsheet_id": SPREADSHEET_ID, "worksheet": "PL GLOBAL"},
-    "business_block": {"spreadsheet_id": SPREADSHEET_ID, "worksheet": "Бизнес-блок"},
     "monitoring": {"spreadsheet_id": MONITORING_SPREADSHEET_ID,
                    "worksheet": "Мониторинг по дате закрытия сделки"},
     "rebudget": {"spreadsheet_id": BUSINESS_MODEL_SPREADSHEET_ID, "worksheet": "2026 Ребюджет"},
@@ -231,39 +226,10 @@ PL_FULL_METRICS = [
     ("Чистая прибыль", [177], "money"),
 ]
 
-# ============= СЕГМЕНТЫ (лист «Бизнес-блок», устойчивый ридер) =============
-# Таблицы ищем по подстроке заголовка секции (в колонке A), а не по фикс. номерам строк
-# (лист периодически сдвигается). Месяцы 2026 — по названиям в шапке (bare «Jan», у 2025 суффикс «25»).
-BB_SECTIONS = {
-    "active_clients":  "Количество активных клиентов",
-    "turnover":        "Оборот по типам клиентов",
-    "deals":           "Количество сделок по типам",
-    "avg_check":       "Средний чек по типам",
-    "marginal_profit": "Маржинальная прибыль по типам",
-    "marginality":     "Маржинальность по типам",
-}
-
-# Русские подписи бизнес-линий «Бизнес-блока» (в листе — англ., в кол. A таблиц).
-BB_LINE_LABELS_RU = {
-    "Bank opt_import":   "Опт. банки",
-    "Direct opt_import": "Опт. клиенты",
-    "Bank import":       "Банк. импорт",
-    "Direct import":     "Прямой импорт",
-    "Exchange":          "Конвертация",
-    "Export":            "Экспорт",
-    "Partner":           "Партнёры",
-    "Special":           "Спец клиенты",
-    "Dealing":           "Дилинг",
-    "Sber":              "Sber импорт",
-    "Sberexp":           "Sber экспорт",
-}
-
-
 # ============= АГЕНТЫ (лист «Свод по агентам») =============
 # Строка 1 — месяцы (каждый блок = 8 колонок), строка 2 — подзаголовки метрик,
 # данные с строки 3 до первой пустой ячейки в колонке A (имя агента).
 AGENTS_DATA_START_ROW = 3
-AGENTS_NAME_COL = 1
 # Технические строки в «Своде по агентам» — не агенты, пропускаем при чтении.
 AGENTS_EXCLUDE = {"AGENT_RNG"}
 # На листе отдельного агента клиенты начинаются со строки 7 (выше: Итого/Промежут.итоги/даты/шапка).
@@ -290,7 +256,6 @@ AGENT_METRICS = [
 # месяцев). Строка 1 — заголовки, данные со строки 2. У каждой сделки уже есть: месяц (A),
 # продукт (I) + подтип (J), канал (AE) + подкатегория (AF), первичная/повторная (AG) и все
 # денежные компоненты. Уровни дохода считаем сами (фактические, без «скрытых надбавок»).
-DEALS_HEADER_ROW = 1
 DEALS_DATA_START = 2
 
 # Карта столбцов (1-индекс). Текстовые:

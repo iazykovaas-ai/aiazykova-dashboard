@@ -11,9 +11,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from components.assistant import render_assistant
 from components.kpi import format_money
-from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close, mom_colors,
-                               chart_card_open, col_separators, cuboid_mesh, hero,
-                               row_separators, style_plotly_2d, style_plotly_3d)
+from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
+                               col_separators, hero, mom_colors, row_separators,
+                               style_plotly_2d)
 from components.glossary import PAGE_MON, render_abbr_expander
 from config import (MON_LINE_BLOCKS, MON_LINE_LABELS_RU, MON_LINES, MON_METRIC_LABELS,
                     MON_MONTH_TOTAL_COLS, MON_SUMMARY_ROWS, MONTH_NAMES_RU)
