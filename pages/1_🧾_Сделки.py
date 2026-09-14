@@ -14,11 +14,12 @@ from components.format import (bg_diverging as _bg, md_escape as _md,
                                usd_spaced as _mfmt)
 from components.glossary import PAGE_DEALS, render_abbr_expander
 from components.kpi import format_money
-from components.styles import (PALETTE, apply, chart_card_close, chart_card_open,
-                               col_separators, hero, row_separators, style_plotly_2d,
-                               wrap_label)
-from data.sheets_loader import (deals_agg, deals_month_label, deals_monthly_totals,
-                                deals_months, deals_period_label, deals_sale_split)
+from components.styles import (CHART_COLORS, PALETTE, apply, chart_card_close,
+                               chart_card_open, col_separators, hero, row_separators,
+                               style_plotly_2d, wrap_label)
+from data.sheets_loader import (deals_agg, deals_month_label, deals_monthly_by_group,
+                                deals_monthly_totals, deals_months, deals_period_label,
+                                deals_sale_split, deals_top_clients)
 
 st.set_page_config(page_title="Сделки", page_icon="🧾", layout="wide")
 apply()
@@ -220,6 +221,36 @@ if len(mt) >= 2:
     ))
 chart_card_close()
 
+# ===== 4b. Динамика оборота с разбивкой по каналам/продуктам (стек) =====
+chart_card_open(f"📊 Динамика оборота по {what}", "вклад каждого по месяцам · весь год · стек, USD")
+byg, groups = deals_monthly_by_group(kind, months_all)
+xg = [deals_month_label(m).replace(" 2026", "").replace(" 2025", "") for m in byg["month"]]
+figg = go.Figure()
+for gi, gname in enumerate(groups):
+    figg.add_trace(go.Bar(
+        x=xg, y=byg[gname], name=gname, marker_color=CHART_COLORS[gi % len(CHART_COLORS)],
+        hovertemplate="<b>%{x}</b><br>" + _md(gname) + ": %{y:,.0f} $<extra></extra>",
+    ))
+style_plotly_2d(figg, height=400)
+figg.update_layout(
+    barmode="stack", margin=dict(l=10, r=10, t=10, b=10),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+    yaxis=dict(title="Оборот, USD", showgrid=True, showticklabels=False),
+    xaxis=dict(showgrid=False),
+    shapes=col_separators(len(xg)),
+)
+st.plotly_chart(figg, width="stretch", config={"displayModeBar": False})
+if groups:
+    _sum_g = {g: byg[g].sum() for g in groups}
+    _lead_g = max(_sum_g, key=_sum_g.get)
+    _tot_g = sum(_sum_g.values())
+    st.markdown(_md(
+        f"🔎 **Вывод.** За весь период наибольший вклад в оборот даёт **{_lead_g}** "
+        f"({format_money(_sum_g[_lead_g])}, {_sum_g[_lead_g] / _tot_g * 100:.0f}% суммарного "
+        f"оборота по {what})."
+    ))
+chart_card_close()
+
 # ===== 5. Сводная таблица с иерархией =====
 chart_card_open(f"📋 Сводка по {what}", f"{period} · вложенные строки — с отступом · заливка ЧП%")
 rows_tbl = []
@@ -264,4 +295,43 @@ if len(prim) and len(rep) and prim.iloc[0]["turnover"] > 0:
         f"при {rp['net_profit_pct'] * 100:.2f}%. Первая сделка обычно мельче "
         f"(средний чек {format_money(pr['avg_check'])} против {format_money(rp['avg_check'])})."
     ))
+chart_card_close()
+
+# ===== 6. Топ-15 клиентов (кто выше всех) =====
+chart_card_open("🏆 Топ-15 клиентов", f"{period} · сортировка по чистой прибыли · клиентские сделки")
+top = deals_top_clients(sel_months, 15, by="net_profit")
+if top.empty:
+    st.caption("Нет данных за выбранный период.")
+else:
+    fig = _bar_h(top, "net_profit", _green, _money_txt, "Чистая прибыль, USD",
+                 "ЧП: %{x:,.0f} $<br>Оборот: %{customdata[0]:,.0f} $<br>"
+                 "Сделок: %{customdata[3]}")
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+
+    lead_np = top.iloc[0]
+    lead_ob = deals_top_clients(sel_months, 1, by="turnover").iloc[0]
+    top_np_share = top["net_profit"].sum() / tot["net_profit"] * 100 if tot["net_profit"] else 0
+    st.markdown(_md(
+        f"🔎 **Вывод.** Больше всех прибыли приносит **{lead_np['name']}** "
+        f"({format_money(lead_np['net_profit'])} ЧП при обороте "
+        f"{format_money(lead_np['turnover'])}). По обороту лидирует **{lead_ob['name']}** "
+        f"({format_money(lead_ob['turnover'])}). Топ-15 клиентов дают "
+        f"{top_np_share:.0f}% всей чистой прибыли."
+    ))
+
+    tbl_c = pd.DataFrame({
+        "Клиент": top["name"], "Сделок": top["deals"].astype(int),
+        "Оборот": top["turnover"], "Средний чек": top["avg_check"],
+        "Валовая маржа": top["gross"], "Чистая прибыль": top["net_profit"],
+        "ЧП, %": top["net_profit_pct"],
+    })
+    styler_c = (
+        tbl_c.style
+        .format({"Сделок": "{:.0f}", "Оборот": _mfmt, "Средний чек": _mfmt,
+                 "Валовая маржа": _mfmt, "Чистая прибыль": _mfmt,
+                 "ЧП, %": lambda v: f"{v * 100:.2f}%".replace(".", ",")})
+        .apply(_bg, subset=["Чистая прибыль", "ЧП, %"])
+    )
+    st.dataframe(styler_c, width="stretch", hide_index=True,
+                 height=min(600, 44 + 35 * len(tbl_c)))
 chart_card_close()

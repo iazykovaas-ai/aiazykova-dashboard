@@ -786,6 +786,40 @@ def deals_sale_split(months: list[str]) -> pd.DataFrame:
     return pd.DataFrame(recs)
 
 
+def deals_top_clients(months: list[str], n: int = 15, by: str = "net_profit") -> pd.DataFrame:
+    """Топ клиентов за период (только клиентские сделки), сортировка по метрике by.
+
+    Строки — клиент + агрегаты (_agg_metrics). Возвращает первые n."""
+    df = deals_frame()
+    d = _client_only(df[df["month"].isin(months)])
+    if d.empty:
+        return pd.DataFrame()
+    recs = [{"name": cl, **_agg_metrics(sub)} for cl, sub in d.groupby("client")]
+    res = pd.DataFrame(recs).sort_values(by, ascending=False)
+    return res.head(n).reset_index(drop=True)
+
+
+def deals_monthly_by_group(kind: str, months: list[str], valcol: str = "turnover"):
+    """Помесячная разбивка метрики valcol по группам (каналы/продукты), клиентские сделки.
+
+    Возвращает (DataFrame со столбцами month/label + по столбцу на группу, список групп
+    в правильном порядке) — для стека динамики.
+    """
+    df = deals_frame()
+    d = _client_only(df[df["month"].isin(months)])
+    col = "channel" if kind == "channels" else "product"
+    order = DEALS_CH_ORDER if kind == "channels" else DEALS_PR_ORDER
+    groups = _ordered_groups(d[col], order) if not d.empty else []
+    recs = []
+    for m in sorted(months, key=_month_key):
+        dm = d[d["month"] == m]
+        row = {"month": m, "label": deals_month_label(m)}
+        for gname in groups:
+            row[gname] = dm[dm[col] == gname][valcol].sum()
+        recs.append(row)
+    return pd.DataFrame(recs), groups
+
+
 # ============= СТАБ (на случай отсутствия доступа) =============
 def load_stub(key: str) -> pd.DataFrame:
     """Минимальные демо-данные."""
