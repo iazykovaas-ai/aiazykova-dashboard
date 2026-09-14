@@ -453,7 +453,8 @@ def agent_monthly_series(rows: list[list[str]], name: str, key: str) -> list[flo
 from config import (DEALS_CH_BANK, DEALS_CH_ORDER, DEALS_COL,  # noqa: E402
                     DEALS_DATA_START, DEALS_GROSS_ADD, DEALS_LIQUIDITY_CHANNEL,
                     DEALS_LIQUIDITY_PRODUCT, DEALS_MONEY, DEALS_NET_MARGIN_ADD,
-                    DEALS_NET_PROFIT_ADD, DEALS_PR_ORDER)
+                    DEALS_NET_PROFIT_ADD, DEALS_OBMEN_FLAG, DEALS_OBMEN_GROUP,
+                    DEALS_OBMEN_SUB_ORDER, DEALS_PR_ORDER, DEALS_RUB)
 
 _MONTH_RU_SHORT = {"янв": 1, "фев": 2, "мар": 3, "апр": 4, "май": 5, "июн": 6,
                    "июл": 7, "авг": 8, "сен": 9, "окт": 10, "ноя": 11, "дек": 12}
@@ -500,6 +501,9 @@ def deals_frame() -> pd.DataFrame:
             "channel": _norm_name(g(DEALS_COL["channel"])),
             "channel_sub": _norm_name(g(DEALS_COL["channel_sub"])),
             "sale": _norm_name(g(DEALS_COL["sale"])).lower(),
+            "cur_in": _norm_name(g(DEALS_COL["cur_in"])).upper(),
+            "cur_out": _norm_name(g(DEALS_COL["cur_out"])).upper(),
+            "obmen": _norm_name(g(DEALS_COL["obmen"])).lower() == DEALS_OBMEN_FLAG,
         }
         for k, c in DEALS_MONEY.items():
             rec[k] = parse_ru_number(g(c))
@@ -510,6 +514,15 @@ def deals_frame() -> pd.DataFrame:
     df["gross"] = df[DEALS_GROSS_ADD].sum(axis=1)
     df["net_margin"] = df["gross"] + df[DEALS_NET_MARGIN_ADD].sum(axis=1)
     df["net_profit"] = df["net_margin"] + df[DEALS_NET_PROFIT_ADD].sum(axis=1)
+    # ОБМЕН вынесен в отдельную группу в обоих разрезах (как в листах «…новый порядок»):
+    # обычные группы считаются БЕЗ обмена, обменные клиентские сделки → группа «Обмен».
+    df["prod_grp"] = df["product"].where(~df["obmen"], DEALS_OBMEN_GROUP)
+    df["chan_grp"] = df["channel"].where(~df["obmen"], DEALS_OBMEN_GROUP)
+    ob, rub = df["obmen"], DEALS_RUB
+    df["obmen_sub"] = ""
+    df.loc[ob & (df["cur_in"] == rub), "obmen_sub"] = "Рубль на вход"
+    df.loc[ob & (df["cur_in"] != rub) & (df["cur_out"] == rub), "obmen_sub"] = "Рубль на выход"
+    df.loc[ob & (df["cur_in"] != rub) & (df["cur_out"] != rub), "obmen_sub"] = "Без рубля"
     return df
 
 
@@ -576,25 +589,26 @@ def _client_only(d: pd.DataFrame) -> pd.DataFrame:
 def deals_agg(kind: str, months: list[str]) -> pd.DataFrame:
     """Иерархия по каналам/продуктам за выбранные месяцы (только клиентские сделки).
 
-    Строки: level 0 — верхний уровень (полное разбиение), level 1 — вложенная
-    детализация (подкатегории банка / подтипы продукта), 'total' — ИТОГО.
-    Ликвидность исключена в обоих разрезах → итоги каналов и продуктов совпадают.
+    ОБМЕН вынесен в отдельную группу верхнего уровня в ОБОИХ разрезах (как в листах
+    «…новый порядок»): обычные каналы/продукты считаются БЕЗ обмена, обмен — своя группа
+    с подтипами по валютам (рубль на вход / на выход / без рубля). Сумма групп = ИТОГО
+    (без двойного счёта). Ликвидность исключена → итоги каналов и продуктов совпадают.
     """
     df = deals_frame()
     d = _client_only(df[df["month"].isin(months)])
+    grp, order = (("chan_grp", DEALS_CH_ORDER) if kind == "channels"
+                  else ("prod_grp", DEALS_PR_ORDER))
     recs = []
-    if kind == "channels":
-        for ch in _ordered_groups(d["channel"], DEALS_CH_ORDER):
-            sub = d[d["channel"] == ch]
-            recs.append({"name": ch, "level": 0, **_agg_metrics(sub)})
-            if ch == DEALS_CH_BANK:
-                for sc in _ordered_groups(sub[sub["channel_sub"] != ""]["channel_sub"], []):
-                    ssub = sub[sub["channel_sub"] == sc]
-                    recs.append({"name": sc, "level": 1, **_agg_metrics(ssub)})
-    else:
-        for pr in _ordered_groups(d["product"], DEALS_PR_ORDER):
-            sub = d[d["product"] == pr]
-            recs.append({"name": pr, "level": 0, **_agg_metrics(sub)})
+    for name in _ordered_groups(d[grp], order + [DEALS_OBMEN_GROUP]):
+        sub = d[d[grp] == name]
+        recs.append({"name": name, "level": 0, **_agg_metrics(sub)})
+        if name == DEALS_OBMEN_GROUP:
+            for sc in _ordered_groups(sub[sub["obmen_sub"] != ""]["obmen_sub"], DEALS_OBMEN_SUB_ORDER):
+                recs.append({"name": sc, "level": 1, **_agg_metrics(sub[sub["obmen_sub"] == sc])})
+        elif kind == "channels" and name == DEALS_CH_BANK:
+            for sc in _ordered_groups(sub[sub["channel_sub"] != ""]["channel_sub"], []):
+                recs.append({"name": sc, "level": 1, **_agg_metrics(sub[sub["channel_sub"] == sc])})
+        elif kind == "products":
             subtypes = sub.groupby("subtype")["turnover"].sum().sort_values(ascending=False)
             for sc in subtypes.index:
                 if not sc:
@@ -649,8 +663,8 @@ def deals_monthly_by_group(kind: str, months: list[str], valcol: str = "turnover
     """
     df = deals_frame()
     d = _client_only(df[df["month"].isin(months)])
-    col = "channel" if kind == "channels" else "product"
-    order = DEALS_CH_ORDER if kind == "channels" else DEALS_PR_ORDER
+    col = "chan_grp" if kind == "channels" else "prod_grp"
+    order = (DEALS_CH_ORDER if kind == "channels" else DEALS_PR_ORDER) + [DEALS_OBMEN_GROUP]
     groups = _ordered_groups(d[col], order) if not d.empty else []
     recs = []
     for m in sorted(months, key=_month_key):

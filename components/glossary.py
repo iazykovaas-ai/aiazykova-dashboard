@@ -58,6 +58,9 @@ ABBR: dict[str, tuple[str, str]] = {
                   "это снабжение, а не продажи"),
     "primarysale": ("Первичная / повторная продажа",
                     "первичная — самая первая сделка клиента с янв-2025; повторная — последующие"),
+    "obmen": ("Обмен",
+              "валютообменные сделки клиентов — вынесены в отдельную группу и в каналах, и в "
+              "продуктах; подтипы по валютам: рубль на вход / на выход / без рубля"),
 }
 
 # Какие термины показывать на каждой странице (только те, что реально встречаются).
@@ -70,7 +73,7 @@ PAGE_SEG = ["marginality", "MP", "avgcheck", "Turnover", "units"]
 PAGE_AGENTS = ["Turnover", "MP", "marginality", "clientrate", "ourfee", "agentfee",
                "YTD", "units"]
 PAGE_DEALS = ["Turnover", "grossmargin", "netmargin", "netprofit2", "marginality",
-              "channel", "liquidity", "primarysale", "avgcheck", "FX", "units"]
+              "channel", "liquidity", "obmen", "primarysale", "avgcheck", "FX", "units"]
 
 
 def render_abbr_expander(keys: list[str], title: str = "ℹ️ Расшифровка аббревиатур") -> None:
