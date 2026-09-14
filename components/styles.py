@@ -243,33 +243,29 @@ _CSS = """
         margin-bottom: 3px;
     }
 
-    /* Поля выбора/ввода: залитый фиолетовый фон — видна вся полоса выбора */
-    [data-testid="stSelectbox"] [data-baseweb="select"] > div,
-    [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
-    [data-testid="stDateInput"] [data-baseweb="input"],
-    [data-testid="stNumberInput"] [data-baseweb="input"],
-    [data-testid="stTextInput"] [data-baseweb="input"] {
+    /* Поля выбора/ввода: залитый фиолетовый фон — видна вся полоса выбора.
+       Селекторы напрямую по data-baseweb (надёжнее, ловят selectbox во всех вкладках). */
+    div[data-baseweb="select"],
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="input"],
+    div[data-baseweb="base-input"] {
         background: linear-gradient(180deg, rgba(123, 111, 240, 0.48), rgba(123, 111, 240, 0.34)) !important;
-        border: 2px solid rgba(160, 150, 255, 0.95) !important;
         border-radius: 10px !important;
-        box-shadow: 0 0 18px rgba(123, 111, 240, 0.35);
+    }
+    div[data-baseweb="select"],
+    div[data-baseweb="input"] {
+        border: 2px solid rgba(160, 150, 255, 0.95) !important;
+        box-shadow: 0 0 18px rgba(123, 111, 240, 0.35) !important;
         transition: background .18s ease, box-shadow .18s ease;
     }
     /* Текст и иконки внутри — светлые, читаемо на фиолетовом */
-    [data-testid="stSelectbox"] [data-baseweb="select"] *,
-    [data-testid="stMultiSelect"] [data-baseweb="select"] * {
-        color: #FFFFFF !important;
-    }
-    [data-testid="stSelectbox"] svg,
-    [data-testid="stMultiSelect"] svg { fill: #FFFFFF !important; }
+    div[data-baseweb="select"] *,
+    div[data-baseweb="input"] * { color: #FFFFFF !important; }
+    div[data-baseweb="select"] svg { fill: #FFFFFF !important; }
     /* Наведение / фокус — фон ещё насыщеннее */
-    [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
-    [data-testid="stMultiSelect"] [data-baseweb="select"] > div:hover,
-    [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
-    [data-testid="stMultiSelect"] [data-baseweb="select"] > div:focus-within,
-    [data-testid="stDateInput"] [data-baseweb="input"]:focus-within,
-    [data-testid="stNumberInput"] [data-baseweb="input"]:focus-within,
-    [data-testid="stTextInput"] [data-baseweb="input"]:focus-within {
+    div[data-baseweb="select"]:hover,
+    div[data-baseweb="select"]:focus-within,
+    div[data-baseweb="input"]:focus-within {
         background: linear-gradient(180deg, rgba(123, 111, 240, 0.62), rgba(123, 111, 240, 0.46)) !important;
         box-shadow: 0 0 24px rgba(123, 111, 240, 0.45) !important;
     }
