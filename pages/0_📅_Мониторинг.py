@@ -55,13 +55,16 @@ if not months:
     st.stop()
 
 # ===== Выбор месяца и метрики =====
-# По умолчанию — запомненный в URL месяц (?mm=), иначе последний ЗАКРЫТЫЙ (с колонкой итога)
+# Приоритет дефолта: запомненный в URL месяц (?mm=) → последний месяц С ДАННЫМИ
+# (не пустой будущий месяц вроде декабря, где колонка итога заведена, но оборот = 0).
 closed = [m for m in months if m in MON_MONTH_TOTAL_COLS]
+nonempty = [m for m in closed if mon_summary_monthly(rows, "turnover", m) != 0]
+default_last = nonempty[-1] if nonempty else (closed[-1] if closed else months[-1])
 try:
     _qpm = int(st.query_params.get("mm", 0))
 except (TypeError, ValueError):
     _qpm = 0
-default_month = _qpm if _qpm in months else (closed[-1] if closed else months[-1])
+default_month = _qpm if _qpm in months else default_last
 col_m, col_metric = st.columns([1, 2])
 with col_m:
     month = st.selectbox("Месяц", months, index=months.index(default_month),

@@ -243,19 +243,26 @@ _CSS = """
         margin-bottom: 3px;
     }
 
-    /* Поля выбора/ввода: яркая сиреневая рамка + постоянное свечение */
+    /* Поля выбора/ввода: залитый фиолетовый фон — видна вся полоса выбора */
     [data-testid="stSelectbox"] [data-baseweb="select"] > div,
     [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
     [data-testid="stDateInput"] [data-baseweb="input"],
     [data-testid="stNumberInput"] [data-baseweb="input"],
     [data-testid="stTextInput"] [data-baseweb="input"] {
-        background: rgba(123, 111, 240, 0.14) !important;
-        border: 2px solid rgba(123, 111, 240, 0.90) !important;
+        background: linear-gradient(180deg, rgba(123, 111, 240, 0.48), rgba(123, 111, 240, 0.34)) !important;
+        border: 2px solid rgba(160, 150, 255, 0.95) !important;
         border-radius: 10px !important;
-        box-shadow: 0 0 0 1px rgba(123, 111, 240, 0.25), 0 0 16px rgba(123, 111, 240, 0.22);
-        transition: border-color .18s ease, box-shadow .18s ease;
+        box-shadow: 0 0 18px rgba(123, 111, 240, 0.35);
+        transition: background .18s ease, box-shadow .18s ease;
     }
-    /* Наведение / фокус — свечение ещё ярче */
+    /* Текст и иконки внутри — светлые, читаемо на фиолетовом */
+    [data-testid="stSelectbox"] [data-baseweb="select"] *,
+    [data-testid="stMultiSelect"] [data-baseweb="select"] * {
+        color: #FFFFFF !important;
+    }
+    [data-testid="stSelectbox"] svg,
+    [data-testid="stMultiSelect"] svg { fill: #FFFFFF !important; }
+    /* Наведение / фокус — фон ещё насыщеннее */
     [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover,
     [data-testid="stMultiSelect"] [data-baseweb="select"] > div:hover,
     [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within,
@@ -263,24 +270,21 @@ _CSS = """
     [data-testid="stDateInput"] [data-baseweb="input"]:focus-within,
     [data-testid="stNumberInput"] [data-baseweb="input"]:focus-within,
     [data-testid="stTextInput"] [data-baseweb="input"]:focus-within {
-        border-color: #8E82FF !important;
-        box-shadow: 0 0 0 3px rgba(123, 111, 240, 0.35), 0 0 22px rgba(123, 111, 240, 0.30) !important;
+        background: linear-gradient(180deg, rgba(123, 111, 240, 0.62), rgba(123, 111, 240, 0.46)) !important;
+        box-shadow: 0 0 24px rgba(123, 111, 240, 0.45) !important;
     }
-    /* Стрелка выпадающего списка — акцентом */
-    [data-testid="stSelectbox"] svg,
-    [data-testid="stMultiSelect"] svg { fill: #B7AEFF !important; }
 
-    /* Radio (тип/разрез): яркая рамка вокруг группы опций */
+    /* Radio (тип/разрез): залитый фиолетовый фон группы */
     [data-testid="stRadio"] [role="radiogroup"] {
-        background: rgba(123, 111, 240, 0.12);
-        border: 2px solid rgba(123, 111, 240, 0.70);
+        background: linear-gradient(180deg, rgba(123, 111, 240, 0.42), rgba(123, 111, 240, 0.30));
+        border: 2px solid rgba(160, 150, 255, 0.90);
         border-radius: 10px;
-        padding: 6px 14px;
-        box-shadow: 0 0 14px rgba(123, 111, 240, 0.16);
+        padding: 8px 14px;
+        box-shadow: 0 0 16px rgba(123, 111, 240, 0.30);
     }
+    [data-testid="stRadio"] [role="radiogroup"] * { color: #FFFFFF !important; }
     [data-testid="stRadio"] [role="radiogroup"]:hover {
-        border-color: #8E82FF;
-        box-shadow: 0 0 18px rgba(123, 111, 240, 0.26);
+        background: linear-gradient(180deg, rgba(123, 111, 240, 0.55), rgba(123, 111, 240, 0.40));
     }
 
     /* Slider / select_slider (период): яркие бегунки */

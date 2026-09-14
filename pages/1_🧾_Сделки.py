@@ -78,7 +78,8 @@ df = deals_agg(kind, sel_months)
 lvl0 = df[df["level"] == 0].copy()
 total = df[df["level"] == "total"]
 tot = total.iloc[0]
-what = "каналов" if kind == "channels" else "продуктов"
+what = "каналов" if kind == "channels" else "продуктов"          # родительный: «4 каналов»
+what_dat = "каналам" if kind == "channels" else "продуктам"      # дательный: «по каналам»
 
 # ===== KPI =====
 c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
@@ -119,7 +120,7 @@ def _bar_h(frame, valcol, colorfn, textfn, xtitle, hovertail, pct=False):
 
 
 # ===== 1. Оборот =====
-chart_card_open(f"💰 Оборот по {what}", f"{period} · USD")
+chart_card_open(f"💰 Оборот по {what_dat}", f"{period} · USD")
 fig = _bar_h(lvl0, "turnover", lambda v: "#36C5F0", _money_txt, "Оборот, USD",
              "Оборот: %{x:,.0f} $<br>Чистая прибыль: %{customdata[1]:,.0f} $<br>"
              "Сделок: %{customdata[3]} · клиентов: %{customdata[2]}")
@@ -133,7 +134,7 @@ st.markdown(_md(
 chart_card_close()
 
 # ===== 2. Чистая прибыль =====
-chart_card_open(f"📈 Чистая прибыль по {what}", f"{period} · USD · после ФОТ и конвертаций")
+chart_card_open(f"📈 Чистая прибыль по {what_dat}", f"{period} · USD · после ФОТ и конвертаций")
 fig = _bar_h(lvl0, "net_profit", _green, _money_txt, "Чистая прибыль, USD",
              "Чистая прибыль: %{x:,.0f} $<br>Оборот: %{customdata[0]:,.0f} $")
 st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
@@ -150,7 +151,7 @@ chart_card_close()
 
 # ===== 3. Маржинальность (ЧП%) =====
 avg = tot["net_profit_pct"]
-chart_card_open(f"🎯 Маржинальность по {what}",
+chart_card_open(f"🎯 Маржинальность по {what_dat}",
                 f"{period} · чистая прибыль ÷ оборот · пунктир — средняя {avg * 100:.2f}%")
 fr = lvl0.sort_values("net_profit_pct", ascending=True)
 figm = go.Figure(go.Bar(
@@ -222,7 +223,7 @@ if len(mt) >= 2:
 chart_card_close()
 
 # ===== 4b. Динамика оборота с разбивкой по каналам/продуктам (стек) =====
-chart_card_open(f"📊 Динамика оборота по {what}", "вклад каждого по месяцам · весь год · стек, USD")
+chart_card_open(f"📊 Динамика оборота по {what_dat}", "вклад каждого по месяцам · весь год · стек, USD")
 byg, groups = deals_monthly_by_group(kind, months_all)
 xg = [deals_month_label(m).replace(" 2026", "").replace(" 2025", "") for m in byg["month"]]
 figg = go.Figure()
@@ -247,12 +248,12 @@ if groups:
     st.markdown(_md(
         f"🔎 **Вывод.** За весь период наибольший вклад в оборот даёт **{_lead_g}** "
         f"({format_money(_sum_g[_lead_g])}, {_sum_g[_lead_g] / _tot_g * 100:.0f}% суммарного "
-        f"оборота по {what})."
+        f"оборота по {what_dat})."
     ))
 chart_card_close()
 
 # ===== 5. Сводная таблица с иерархией =====
-chart_card_open(f"📋 Сводка по {what}", f"{period} · вложенные строки — с отступом · заливка ЧП%")
+chart_card_open(f"📋 Сводка по {what_dat}", f"{period} · вложенные строки — с отступом · заливка ЧП%")
 rows_tbl = []
 for _, r in df[df["level"].isin([0, 1])].iterrows():
     nm = r["name"] if r["level"] == 0 else "    " + r["name"]
