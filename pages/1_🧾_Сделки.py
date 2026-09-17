@@ -254,22 +254,24 @@ if groups:
     ))
 chart_card_close()
 
-# ===== 5. Сводная таблица с иерархией =====
-chart_card_open(f"📋 Сводка по {what_dat}", f"{period} · вложенные строки — с отступом · заливка ЧП%")
+# ===== 5. Сводная таблица (плоская: Группа/Подгруппа — сортировка не ломает иерархию) =====
+chart_card_open(f"📋 Сводка по {what_dat}", f"{period} · столбцы Группа/Подгруппа · заливка ЧП% · клик по шапке сортирует")
 rows_tbl = []
+cur_group = ""
 for _, r in df[df["level"].isin([0, 1])].iterrows():
-    nm = r["name"] if r["level"] == 0 else "    " + r["name"]
+    if r["level"] == 0:
+        cur_group = r["name"]
+        grp, sub = r["name"], ""
+    else:
+        grp, sub = cur_group, r["name"]
     rows_tbl.append({
-        "Строка": nm, "Клиентов": int(r["clients"]), "Сделок": int(r["deals"]),
+        "Группа": grp, "Подгруппа": sub,
+        "Клиентов": int(r["clients"]), "Сделок": int(r["deals"]),
         "Оборот": r["turnover"], "Средний чек": r["avg_check"], "Наша комиссия": r["our_comm"],
         "Валовая маржа": r["gross"], "Чистая маржа": r["net_margin"],
         "Чистая прибыль": r["net_profit"], "ЧП, %": r["net_profit_pct"],
     })
 tbl = pd.DataFrame(rows_tbl)
-
-st.session_state.setdefault("deals_tbl_nonce", 0)
-if st.button("↺ Сбросить сортировку и фильтры", key="deals_tbl_reset"):
-    st.session_state["deals_tbl_nonce"] += 1
 styler = (
     tbl.style
     .format({"Клиентов": "{:.0f}", "Сделок": "{:.0f}", "Оборот": _mfmt,
@@ -279,10 +281,10 @@ styler = (
     .apply(_bg, subset=["Чистая прибыль", "ЧП, %"])
 )
 st.dataframe(styler, width="stretch", hide_index=True,
-             height=min(560, 44 + 35 * len(tbl)),
-             key=f"deals_tbl_{st.session_state['deals_tbl_nonce']}")
-st.caption("ℹ️ Клиентов по строкам — уникальные внутри строки; сумма по строкам может превышать "
-           "ИТОГО (один клиент бывает в нескольких каналах/продуктах).")
+             height=min(620, 44 + 35 * len(tbl)))
+st.caption("ℹ️ Строки без подгруппы — итог группы; с подгруппой — детализация внутри неё. "
+           "Клиентов по строке — уникальные внутри строки, сумма по строкам может превышать ИТОГО "
+           "(клиент бывает в нескольких каналах/продуктах). Клик по заголовку столбца сортирует.")
 
 # первичные vs повторные клиентские сделки
 sp = deals_sale_split(sel_months)
