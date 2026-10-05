@@ -449,22 +449,31 @@ def agent_monthly_series(rows: list[list[str]], name: str, key: str) -> list[flo
     return [parse_ru_number(_cell(rows, target, _agent_col(m, off))) for m in range(1, 13)]
 
 
-# ============= СДЕЛКИ: посделочная вкладка «Сделки» (книга RUDA) =============
-from config import (DEALS_CH_BANK, DEALS_CH_ORDER, DEALS_COL,  # noqa: E402
+# ============= СДЕЛКИ (книга RUDA): витрины + посделочная вкладка «Сделки» =============
+from config import (DEALS_CH_FILTERS, DEALS_CH_ROLLUP, DEALS_COL,  # noqa: E402
                     DEALS_DATA_START, DEALS_GROSS_ADD, DEALS_LIQUIDITY_CHANNEL,
                     DEALS_LIQUIDITY_PRODUCT, DEALS_MONEY, DEALS_NET_MARGIN_ADD,
-                    DEALS_NET_PROFIT_ADD, DEALS_OBMEN_FLAG, DEALS_OBMEN_GROUP,
-                    DEALS_OBMEN_SUB_ORDER, DEALS_PR_ORDER, DEALS_RUB)
+                    DEALS_OBMEN_FLAG, DEALS_PR_FILTERS, DEALS_PROFIT_VAR_ADD,
+                    DEALS_SIZE_GROUPS, DEALS_VITRINA_LEVELS)
 
 _MONTH_RU_SHORT = {"янв": 1, "фев": 2, "мар": 3, "апр": 4, "май": 5, "июн": 6,
                    "июл": 7, "авг": 8, "сен": 9, "окт": 10, "ноя": 11, "дек": 12}
 _MONTH_RU_FULL = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
                   "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+_VIT_SHEET = {"channels": "deals_channels", "products": "deals_products"}
+_VIT_NUM = ["clients", "deals", "turnover", "our_comm", *DEALS_VITRINA_LEVELS.values()]
+_SIZE_SET = {s.lower() for s in DEALS_SIZE_GROUPS}
 
 
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю сделки…")
 def load_deals_sdelki_raw() -> list[list[str]]:
     return _open_sheet("deals_sdelki").get_all_values()
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Загружаю витрину RUDA…")
+def load_deals_vitrina_raw(sheet_key: str) -> list[list]:
+    """Витрина целиком; числа — без округления отображения (точные суммы за диапазон)."""
+    return _open_sheet(sheet_key).get_all_values(value_render_option="UNFORMATTED_VALUE")
 
 
 def _norm_name(s: str) -> str:
@@ -480,30 +489,71 @@ def _month_key(label: str) -> tuple[int, int]:
     return (2000 + int(m.group(2)), _MONTH_RU_SHORT.get(m.group(1), 0))
 
 
+def deals_period_yms(label: str) -> list[int]:
+    """Подпись периода витрины → месяцы ГГГГММ: «Август 2026» → [202608];
+    «2 квартал 2026» → [202604, 202605, 202606]. Не период → []."""
+    s = _norm_name(label).lower()
+    m = re.fullmatch(r"([1-4]) квартал (\d{4})", s)
+    if m:
+        q, y = int(m.group(1)), int(m.group(2))
+        return [y * 100 + mm for mm in range(3 * q - 2, 3 * q + 1)]
+    m = re.fullmatch(r"([а-я]+) (\d{4})", s)
+    if m and m.group(1).capitalize() in _MONTH_RU_FULL:
+        return [int(m.group(2)) * 100 + _MONTH_RU_FULL.index(m.group(1).capitalize()) + 1]
+    return []
+
+
+def deals_period_short(label: str) -> str:
+    """Короткая подпись для оси: «Август 2026» → «Август», «1 квартал 2026» → «1 кв»."""
+    s = re.sub(r"\s+\d{4}$", "", _norm_name(label))
+    return s.replace(" квартал", " кв")
+
+
+def deals_period_label(periods: list[str]) -> str:
+    """Один период → как в витрине; диапазон → «Январь–Август 2026» / «1 квартал–Август 2026»."""
+    if not periods:
+        return "—"
+    if len(periods) == 1:
+        return periods[0]
+    a, b = periods[0], periods[-1]
+    ya, yb = a[-4:], b[-4:]
+    return f"{a[:-5]}–{b}" if ya == yb and ya.isdigit() else f"{a} – {b}"
+
+
+def ym_label(ym: int) -> str:
+    """202608 → «Август 2026»."""
+    return f"{_MONTH_RU_FULL[ym % 100 - 1]} {ym // 100}"
+
+
+# ---------- посделочная база «Сделки» ----------
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
 def deals_frame() -> pd.DataFrame:
-    """Посделочная база в DataFrame: месяц, клиент, продукт/подтип, канал/подкатегория,
-    все денежные компоненты и посчитанные уровни дохода (валовая/чистая маржа, ЧП)."""
+    """Посделочная база в DataFrame: месяц (ГГГГММ), клиент, признаки для условий витрин,
+    денежные компоненты и уровни дохода (валовая / чистая маржа / после перем. расходов)."""
     rows = load_deals_sdelki_raw()
     recs = []
     for row in rows[DEALS_DATA_START - 1:]:
         def g(col1: int) -> str:
             i = col1 - 1
             return row[i] if 0 <= i < len(row) else ""
-        month = _norm_name(g(DEALS_COL["month"]))
-        if not month:
+        y, m = _month_key(_norm_name(g(DEALS_COL["month"])))
+        if not m:
             continue
+        comb = _norm_name(g(DEALS_COL["client_comb"]))
         rec = {
-            "month": month,
-            "client": _norm_name(g(DEALS_COL["client_comb"])) or _norm_name(g(DEALS_COL["client"])),
+            "ym": y * 100 + m,
+            "client": comb or _norm_name(g(DEALS_COL["client"])),
+            "client_comb": comb.upper(),
             "product": _norm_name(g(DEALS_COL["product"])),
             "subtype": _norm_name(g(DEALS_COL["subtype"])),
             "channel": _norm_name(g(DEALS_COL["channel"])),
             "channel_sub": _norm_name(g(DEALS_COL["channel_sub"])),
-            "sale": _norm_name(g(DEALS_COL["sale"])).lower(),
+            "first_deal": _norm_name(g(DEALS_COL["first_deal"])).lower(),
             "cur_in": _norm_name(g(DEALS_COL["cur_in"])).upper(),
             "cur_out": _norm_name(g(DEALS_COL["cur_out"])).upper(),
             "obmen": _norm_name(g(DEALS_COL["obmen"])).lower() == DEALS_OBMEN_FLAG,
+            "payment": _norm_name(g(DEALS_COL["payment"])),
+            "size": _norm_name(g(DEALS_COL["size"])),
         }
         for k, c in DEALS_MONEY.items():
             rec[k] = parse_ru_number(g(c))
@@ -513,71 +563,21 @@ def deals_frame() -> pd.DataFrame:
         return df
     df["gross"] = df[DEALS_GROSS_ADD].sum(axis=1)
     df["net_margin"] = df["gross"] + df[DEALS_NET_MARGIN_ADD].sum(axis=1)
-    df["net_profit"] = df["net_margin"] + df[DEALS_NET_PROFIT_ADD].sum(axis=1)
-    # ОБМЕН вынесен в отдельную группу в обоих разрезах (как в листах «…новый порядок»):
-    # обычные группы считаются БЕЗ обмена, обменные клиентские сделки → группа «Обмен».
-    df["prod_grp"] = df["product"].where(~df["obmen"], DEALS_OBMEN_GROUP)
-    df["chan_grp"] = df["channel"].where(~df["obmen"], DEALS_OBMEN_GROUP)
-    ob, rub = df["obmen"], DEALS_RUB
-    df["obmen_sub"] = ""
-    df.loc[ob & (df["cur_in"] == rub), "obmen_sub"] = "Рубль на вход"
-    df.loc[ob & (df["cur_in"] != rub) & (df["cur_out"] == rub), "obmen_sub"] = "Рубль на выход"
-    df.loc[ob & (df["cur_in"] != rub) & (df["cur_out"] != rub), "obmen_sub"] = "Без рубля"
+    df["profit_var"] = df["net_margin"] + df[DEALS_PROFIT_VAR_ADD].sum(axis=1)
     return df
-
-
-def deals_months() -> list[str]:
-    """Список месяцев (сырые метки листа) в хронологическом порядке."""
-    df = deals_frame()
-    if df.empty:
-        return []
-    return sorted(df["month"].unique(), key=_month_key)
-
-
-def deals_month_label(raw: str) -> str:
-    """'авг.-26' → 'Август 2026' (для подписей)."""
-    y, m = _month_key(raw)
-    return f"{_MONTH_RU_FULL[m - 1]} {y}" if m else raw
-
-
-def deals_period_label(months: list[str]) -> str:
-    """Подпись выбранного диапазона: один месяц → 'Август 2026', диапазон → 'Июнь–Август 2026'."""
-    if not months:
-        return "—"
-    ms = sorted(months, key=_month_key)
-    if len(ms) == 1:
-        return deals_month_label(ms[0])
-    y0, m0 = _month_key(ms[0])
-    y1, m1 = _month_key(ms[-1])
-    if y0 == y1:
-        return f"{_MONTH_RU_FULL[m0 - 1]}–{_MONTH_RU_FULL[m1 - 1]} {y1}"
-    return f"{deals_month_label(ms[0])} – {deals_month_label(ms[-1])}"
 
 
 def _agg_metrics(d: pd.DataFrame) -> dict:
     """Агрегаты + уровни дохода для набора сделок."""
     turn = d["turnover"].sum()
-    gross = d["gross"].sum()
-    nm = d["net_margin"].sum()
-    npf = d["net_profit"].sum()
+    pv = d["profit_var"].sum()
     deals = len(d)
     return {
         "clients": int(d["client"].nunique()), "deals": deals,
-        "turnover": turn, "our_comm": d["our_comm"].sum(),
-        "gross": gross, "net_margin": nm, "net_profit": npf,
-        "gross_pct": gross / turn if turn else 0.0,
-        "net_margin_pct": nm / turn if turn else 0.0,
-        "net_profit_pct": npf / turn if turn else 0.0,
+        "turnover": turn, "gross": d["gross"].sum(), "profit_var": pv,
+        "profit_var_pct": pv / turn if turn else 0.0,
         "avg_check": turn / deals if deals else 0.0,
     }
-
-
-def _ordered_groups(values, order: list[str]) -> list[str]:
-    """Значения в порядке order, затем прочие (по алфавиту)."""
-    present = list(dict.fromkeys(values))
-    known = [x for x in order if x in present]
-    rest = sorted(x for x in present if x not in order)
-    return known + rest
 
 
 def _client_only(d: pd.DataFrame) -> pd.DataFrame:
@@ -586,68 +586,21 @@ def _client_only(d: pd.DataFrame) -> pd.DataFrame:
     return d[(d["channel"] != DEALS_LIQUIDITY_CHANNEL) & (d["product"] != DEALS_LIQUIDITY_PRODUCT)]
 
 
-def deals_agg(kind: str, months: list[str]) -> pd.DataFrame:
-    """Иерархия по каналам/продуктам за выбранные месяцы (только клиентские сделки).
-
-    ОБМЕН вынесен в отдельную группу верхнего уровня в ОБОИХ разрезах (как в листах
-    «…новый порядок»): обычные каналы/продукты считаются БЕЗ обмена, обмен — своя группа
-    с подтипами по валютам (рубль на вход / на выход / без рубля). Сумма групп = ИТОГО
-    (без двойного счёта). Ликвидность исключена → итоги каналов и продуктов совпадают.
-    """
+def deals_sale_split(yms: list[int]) -> pd.DataFrame:
+    """Первичные vs повторные продажи за месяцы yms — как строки «первичные продажи» /
+    «повторные продажи» витрины: по AI «Это самая первая сделка клиента» (да / нет)."""
     df = deals_frame()
-    d = _client_only(df[df["month"].isin(months)])
-    grp, order = (("chan_grp", DEALS_CH_ORDER) if kind == "channels"
-                  else ("prod_grp", DEALS_PR_ORDER))
+    d = _client_only(df[df["ym"].isin(yms)])
     recs = []
-    for name in _ordered_groups(d[grp], order + [DEALS_OBMEN_GROUP]):
-        sub = d[d[grp] == name]
-        recs.append({"name": name, "level": 0, **_agg_metrics(sub)})
-        if name == DEALS_OBMEN_GROUP:
-            for sc in _ordered_groups(sub[sub["obmen_sub"] != ""]["obmen_sub"], DEALS_OBMEN_SUB_ORDER):
-                recs.append({"name": sc, "level": 1, **_agg_metrics(sub[sub["obmen_sub"] == sc])})
-        elif kind == "channels" and name == DEALS_CH_BANK:
-            for sc in _ordered_groups(sub[sub["channel_sub"] != ""]["channel_sub"], []):
-                recs.append({"name": sc, "level": 1, **_agg_metrics(sub[sub["channel_sub"] == sc])})
-        elif kind == "products":
-            subtypes = sub.groupby("subtype")["turnover"].sum().sort_values(ascending=False)
-            for sc in subtypes.index:
-                if not sc:
-                    continue
-                recs.append({"name": sc, "level": 1, **_agg_metrics(sub[sub["subtype"] == sc])})
-    recs.append({"name": "ИТОГО", "level": "total", **_agg_metrics(d)})
+    for tag, flag in (("первичная", "да"), ("повторная", "нет")):
+        recs.append({"sale": tag, **_agg_metrics(d[d["first_deal"] == flag])})
     return pd.DataFrame(recs)
 
 
-def deals_monthly_totals(kind: str, months: list[str]) -> pd.DataFrame:
-    """Итоги по каждому месяцу (для графика динамики), только клиентские сделки.
-
-    kind оставлен для совместимости — ликвидность исключена в обоих разрезах,
-    поэтому помесячные итоги каналов и продуктов совпадают.
-    """
+def deals_top_clients(yms: list[int], n: int = 15, by: str = "profit_var") -> pd.DataFrame:
+    """Топ клиентов за месяцы yms (только клиентские сделки), сортировка по метрике by."""
     df = deals_frame()
-    recs = []
-    for m in sorted(months, key=_month_key):
-        d = _client_only(df[df["month"] == m])
-        recs.append({"month": m, "label": deals_month_label(m), **_agg_metrics(d)})
-    return pd.DataFrame(recs)
-
-
-def deals_sale_split(months: list[str]) -> pd.DataFrame:
-    """Первичные vs повторные клиентские сделки (по столбцу «Продажа») за период."""
-    df = deals_frame()
-    d = _client_only(df[df["month"].isin(months)])
-    recs = []
-    for tag in ("первичная", "повторная"):
-        recs.append({"sale": tag, **_agg_metrics(d[d["sale"] == tag])})
-    return pd.DataFrame(recs)
-
-
-def deals_top_clients(months: list[str], n: int = 15, by: str = "net_profit") -> pd.DataFrame:
-    """Топ клиентов за период (только клиентские сделки), сортировка по метрике by.
-
-    Строки — клиент + агрегаты (_agg_metrics). Возвращает первые n."""
-    df = deals_frame()
-    d = _client_only(df[df["month"].isin(months)])
+    d = _client_only(df[df["ym"].isin(yms)])
     if d.empty:
         return pd.DataFrame()
     recs = [{"name": cl, **_agg_metrics(sub)} for cl, sub in d.groupby("client")]
@@ -655,22 +608,202 @@ def deals_top_clients(months: list[str], n: int = 15, by: str = "net_profit") ->
     return res.head(n).reset_index(drop=True)
 
 
-def deals_monthly_by_group(kind: str, months: list[str], valcol: str = "turnover"):
-    """Помесячная разбивка метрики valcol по группам (каналы/продукты), клиентские сделки.
+# ---------- витрины «Каналы по размеру сделки» / «Продуктовые группы» ----------
+def _vit_label(s: str) -> str:
+    """«Импорт (клиентский) всего, в т.ч.:» → «Импорт (клиентский)»."""
+    s = _norm_name(s)
+    s = re.sub(r",?\s*(всего,?\s*)?(в т\.\s?ч\.|в том числе):?$", "", s)
+    return re.sub(r"\s+всего$", "", s).strip(" ,:")
 
-    Возвращает (DataFrame со столбцами month/label + по столбцу на группу, список групп
-    в правильном порядке) — для стека динамики.
+
+def _vitrina_colmap(rows: list[list[str]]) -> dict[str, int]:
+    """Столбцы витрины по шапке (строка названий + строка единиц), а не по буквам."""
+    for i in range(1, len(rows)):
+        units = [_norm_name(c).lower() for c in rows[i]]
+        if "сделок, шт" not in units:
+            continue
+        names = [_norm_name(c) for c in rows[i - 1]]
+        cmap: dict[str, int] = {}
+        for j, u in enumerate(units):
+            n = names[j] if j < len(names) else ""
+            if u.startswith("клиентов"):
+                cmap.setdefault("clients", j)
+            elif u == "сделок, шт":
+                cmap.setdefault("deals", j)
+            elif u == "оборот":
+                cmap.setdefault("turnover", j)
+            elif u == "комиссия для клиента":
+                cmap.setdefault("our_comm", j)
+            elif u == "usd" and n in DEALS_VITRINA_LEVELS:
+                cmap.setdefault(DEALS_VITRINA_LEVELS[n], j)
+        return cmap
+    return {}
+
+
+def _vit_tree(kind: str, recs: list[dict]) -> list[dict]:
+    """Место каждой строки витрины в иерархии: group → sub → detail (+ size для групп размера).
+
+    Каналы: группы — строки с «итого» («Собственные клиенты итого», «Банковский канал итого»),
+    детализация — постоплата/предоплата. Продукты: группы — «… (клиентский)» и «Поставщики
+    ликвидности» (флаг liq), детализация — рубль на вход / на выход / без рубля.
     """
+    out, group, sub, detail, liq = [], "", "", "", False
+    for rec in recs:
+        lab = rec["label"]
+        low = lab.lower()
+        role = "line"
+        if low in _SIZE_SET:
+            role = "size"
+        elif low == "итого":
+            group, sub, detail, liq = "ИТОГО", "", "", False
+            role = "total"
+        elif (kind == "channels" and "итого" in low) or (
+                kind == "products" and ("(клиентский)" in low or low.startswith("поставщики ликвидности"))):
+            group, sub, detail = lab, "", ""
+            liq = low.startswith("поставщики ликвидности")
+        elif (kind == "channels" and low in ("постоплата", "предоплата")) or (
+                kind == "products" and low in ("рубль на вход", "рубль на выход", "без рубля")):
+            detail = lab
+        else:
+            sub, detail = lab, ""
+        out.append({**rec, "role": role, "group": group, "sub": sub, "detail": detail,
+                    "size": lab if role == "size" else "", "liq": liq})
+    return out
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def deals_vitrina_blocks(kind: str) -> tuple[list[str], dict[str, list[dict]]]:
+    """Периоды витрины (в порядке листа) и строки каждого блока с местом в иерархии.
+    Пустые блоки (оборот ИТОГО = 0) не берем."""
+    rows = load_deals_vitrina_raw(_VIT_SHEET[kind])
+    cmap = _vitrina_colmap(rows)
+    if not {"clients", "deals", "turnover", "gross", "net_margin", "profit_var"} <= cmap.keys():
+        return [], {}
+    raw: dict[str, list[dict]] = {}
+    cur = None
+    for r in rows:
+        a = _norm_name(r[0]) if r else ""
+        if deals_period_yms(a):
+            cur = a
+            raw[cur] = []
+            continue
+        if cur is None or not a or a.lower().startswith("доля"):
+            continue
+
+        def cell(k: str) -> str:
+            j = cmap.get(k)
+            return r[j] if j is not None and j < len(r) else ""
+        if not re.search(r"\d", str(cell("deals"))):
+            continue                      # строки шапки следующего блока
+        raw[cur].append({"label": _vit_label(a), **{k: parse_ru_number(cell(k)) for k in _VIT_NUM}})
+    blocks = {p: _vit_tree(kind, recs) for p, recs in raw.items()}
+    periods = [p for p, b in blocks.items()
+               if any(x["role"] == "total" and x["turnover"] for x in b)]
+    return periods, {p: blocks[p] for p in periods}
+
+
+def _filter_mask(d: pd.DataFrame, conds) -> pd.Series:
+    m = pd.Series(True, index=d.index)
+    for col, op, val in conds:
+        s = d[col]
+        if op == "==":
+            m &= s == val
+        elif op == "!=":
+            m &= s != val
+        elif op == "in":
+            m &= s.isin(val)
+        elif op == "not in":
+            m &= ~s.isin(val)
+    return m
+
+
+def _clients_from_deals(kind: str, row: dict, yms: list[int]) -> float:
+    """Уникальные клиенты строки витрины за месяцы yms — по «Сделкам», теми же условиями,
+    что в формулах витрины. Незнакомая подпись строки → NaN."""
     df = deals_frame()
-    d = _client_only(df[df["month"].isin(months)])
-    col = "chan_grp" if kind == "channels" else "prod_grp"
-    order = (DEALS_CH_ORDER if kind == "channels" else DEALS_PR_ORDER) + [DEALS_OBMEN_GROUP]
-    groups = _ordered_groups(d[col], order) if not d.empty else []
-    recs = []
-    for m in sorted(months, key=_month_key):
-        dm = d[d["month"] == m]
-        row = {"month": m, "label": deals_month_label(m)}
-        for gname in groups:
-            row[gname] = dm[dm[col] == gname][valcol].sum()
-        recs.append(row)
-    return pd.DataFrame(recs), groups
+    d = df[df["ym"].isin(yms)]
+    filters = DEALS_CH_FILTERS if kind == "channels" else DEALS_PR_FILTERS
+    conds = ([("channel", "!=", DEALS_LIQUIDITY_CHANNEL)] if kind == "channels"
+             else [("product", "!=", DEALS_LIQUIDITY_PRODUCT)])
+    if row["group"] != "ИТОГО":
+        for part in (row["group"], row["sub"], row["detail"]):
+            if not part:
+                continue
+            f = filters.get(part.lower())
+            if f is None:
+                return float("nan")
+            conds = conds + f
+    if row["size"]:
+        conds = conds + [("size", "==", row["size"])]
+    sel = d[_filter_mask(d, conds)]
+    return float(sel.loc[sel["client_comb"] != "", "client_comb"].nunique())
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def deals_vitrina(kind: str, periods: list[str]) -> pd.DataFrame:
+    """Строки витрины за выбранные периоды — суммы блоков (клиентские сделки).
+
+    Колонки: group/sub/detail/size/role, name (подпись строки), short (короткое имя для
+    графиков), bar (строки для графиков — вместе дают ИТОГО), clients, deals, turnover,
+    our_comm, уровни прибыли (USD и *_pct от оборота), avg_check.
+    Клиенты: один период — из витрины; несколько — уникальные по «Сделкам» (условия витрины).
+    Продукты: поставщики ликвидности исключены, ИТОГО = ИТОГО витрины − ликвидность.
+    """
+    _, blocks = deals_vitrina_blocks(kind)
+    keys = ["group", "sub", "detail", "size"]
+    recs, order = [], {}
+    for p in periods:
+        for i, r in enumerate(blocks.get(p, [])):
+            k = tuple(r[c] for c in keys)
+            order.setdefault(k, (i, len(order)))
+            recs.append({**r, "_k": k})
+    if not recs:
+        return pd.DataFrame()
+    raw = pd.DataFrame(recs)
+    first = raw.drop_duplicates("_k").set_index("_k").drop(columns=_VIT_NUM)
+    sums = raw.groupby("_k")[_VIT_NUM].sum()
+    df = first.join(sums).reset_index()
+    df["_o"] = df["_k"].map(order)
+    df = df.sort_values("_o").reset_index(drop=True)
+
+    yms = sorted({ym for p in periods for ym in deals_period_yms(p)})
+    if len(periods) > 1:
+        df["clients"] = [_clients_from_deals(kind, r, yms) for r in df.to_dict("records")]
+    if kind == "products":
+        liq = df[df["liq"] & (df["sub"] == "") & (df["size"] == "")]
+        tot = df["role"] == "total"
+        for c in _VIT_NUM:
+            if c != "clients" and len(liq):
+                df.loc[tot, c] = df.loc[tot, c].values - liq[c].sum()
+        if tot.any():
+            df.loc[tot, "clients"] = _clients_from_deals(kind, df[tot].iloc[0].to_dict(), yms)
+        df = df[~df["liq"]].reset_index(drop=True)
+
+    df["name"] = df["label"]
+    is_line = df["role"] == "line"
+    if kind == "channels":
+        rollup = df["group"].str.lower() == DEALS_CH_ROLLUP
+        df["bar"] = is_line & (df["detail"] == "") & (
+            (rollup & (df["sub"] != "")) | (~rollup & (df["sub"] == "")))
+    else:
+        df["bar"] = is_line & (df["sub"] == "")
+    df["short"] = (df["name"].str.replace(r"\s+итого$", "", regex=True)
+                   .str.replace(" (клиентский)", "", regex=False))
+    t = df["turnover"].replace(0, float("nan"))
+    for lv in DEALS_VITRINA_LEVELS.values():
+        df[f"{lv}_pct"] = (df[lv] / t).fillna(0.0)
+    df["avg_check"] = (df["turnover"] / df["deals"].replace(0, float("nan"))).fillna(0.0)
+    return df.drop(columns=["_k", "_o", "label"])
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def deals_vitrina_by_period(kind: str) -> pd.DataFrame:
+    """По каждому периоду витрины: строки для графиков (bar) и ИТОГО — для динамики."""
+    periods, _ = deals_vitrina_blocks(kind)
+    out = []
+    for p in periods:
+        d = deals_vitrina(kind, [p])
+        d = d[d["bar"] | (d["role"] == "total")].copy()
+        d["period"] = p
+        out.append(d)
+    return pd.concat(out, ignore_index=True) if out else pd.DataFrame()
